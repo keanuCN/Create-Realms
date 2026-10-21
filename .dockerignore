@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.env
+.env.local
+data
+shots
+.shots
+*.log
+pnpm-debug.log
+.idea
+.vscode
+coverage
+playwright-report

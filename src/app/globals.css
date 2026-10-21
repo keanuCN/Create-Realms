@@ -1,0 +1,94 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --color-brand-400: #8b7dff;
+  --color-brand-500: #7c6cff;
+  --color-brand-600: #6a56f5;
+  --color-mint-400: #4de2c0;
+}
+
+:root {
+  color-scheme: dark;
+  --bg: #080b11;
+  --panel: #10151f;
+  --panel-2: #151b27;
+  --line: rgba(255, 255, 255, 0.08);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background:
+    radial-gradient(1200px 600px at 15% -10%, rgba(124, 108, 255, 0.16), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, rgba(77, 226, 192, 0.08), transparent 55%),
+    var(--bg);
+  color: #e8ecf4;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgba(124, 108, 255, 0.4);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+textarea,
+input,
+select {
+  color-scheme: dark;
+}
+
+@layer utilities {
+  .panel {
+    background: linear-gradient(180deg, rgba(21, 27, 39, 0.9), rgba(16, 21, 31, 0.9));
+    border: 1px solid var(--line);
+    border-radius: 16px;
+  }
+  .glow {
+    box-shadow: 0 10px 40px -12px rgba(124, 108, 255, 0.45);
+  }
+  .text-dim {
+    color: #8b95a7;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.6s infinite linear;
+}

@@ -1,0 +1,58 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: aigc
+      POSTGRES_PASSWORD: aigc
+      POSTGRES_DB: aigc
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aigc -d aigc"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  app:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://aigc:aigc@db:5432/aigc
+      MEDIA_DIR: /data/media
+      NODE_ENV: production
+    command: ["sh", "-c", "pnpm db:migrate && pnpm start"]
+    ports:
+      - "3000:3000"
+    volumes:
+      - media:/data/media
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  worker:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://aigc:aigc@db:5432/aigc
+      MEDIA_DIR: /data/media
+      NODE_ENV: production
+    command: ["sh", "-c", "pnpm db:migrate && pnpm worker"]
+    volumes:
+      - media:/data/media
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  media:
