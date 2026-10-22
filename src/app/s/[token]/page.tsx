@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Download, Sparkles } from "lucide-react";
+import { Download } from "lucide-react";
 import { getAssetByShareToken } from "@/lib/share";
 
 export const dynamic = "force-dynamic";
@@ -25,8 +25,8 @@ export default async function SharePage({ params }: Props) {
   return (
     <div className="mx-auto flex min-h-dvh max-w-5xl flex-col px-4 py-8 sm:px-6">
       <header className="mb-6 flex items-center gap-2.5">
-        <div className="grid size-9 place-items-center rounded-xl bg-gradient-to-br from-[#7c6cff] to-[#4de2c0]">
-          <Sparkles className="size-4 text-white" />
+        <div className="brand-mark grid size-9 place-items-center rounded-xl text-sm font-semibold text-white">
+          造
         </div>
         <div>
           <p className="text-sm font-semibold text-white">造境</p>

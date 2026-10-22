@@ -19,14 +19,14 @@ export function PageHeader({
   return (
     <header className="animate-fade-up mb-6 flex flex-wrap items-end justify-between gap-4">
       <div className="min-w-0">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#a99cff]">
+        <p className="text-[11px] font-medium tracking-[0.16em] text-[#706e68]">
           {eyebrow}
         </p>
-        <h1 className="mt-2 flex flex-wrap items-center gap-3 text-3xl font-semibold tracking-tight text-white">
+        <h1 className="mt-2 flex flex-wrap items-center gap-3 font-serif text-3xl font-semibold tracking-tight text-white">
           {title}
           {meta}
         </h1>
-        <div className="mt-3 h-[3px] w-16 rounded-full bg-gradient-to-r from-[#7c6cff] via-[#9b8dff] to-[#4de2c0] shadow-[0_0_18px_-2px_rgba(124,108,255,.9)]" />
+        <div className="mt-3 h-px w-12 bg-[#3d3b37]" />
         {description ? (
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">{description}</p>
         ) : null}

@@ -27,14 +27,10 @@ type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 type ButtonSize = "sm" | "md" | "lg";
 
 const buttonVariants: Record<ButtonVariant, string> = {
-  primary:
-    "btn-shine text-white bg-gradient-to-b from-[#8b7dff] to-[#6a56f5] border border-[#8b7dff]/40 hover:from-[#978bff] hover:to-[#7566f8] shadow-[0_10px_30px_-12px_rgba(124,108,255,.85)] hover:shadow-[0_16px_38px_-12px_rgba(124,108,255,.95)]",
-  secondary:
-    "text-slate-100 bg-white/[0.05] border border-white/10 hover:bg-white/[0.09] hover:border-[#7c6cff]/40 hover:text-white backdrop-blur-sm",
-  ghost:
-    "text-slate-400 border border-transparent hover:text-white hover:bg-white/[0.06] hover:border-white/10",
-  danger:
-    "text-rose-200 bg-rose-500/10 border border-rose-500/25 hover:bg-rose-500/20 hover:text-rose-100",
+  primary: "btn-primary text-white",
+  secondary: "btn-secondary",
+  ghost: "btn-ghost",
+  danger: "btn-danger",
 };
 
 const buttonSizes: Record<ButtonSize, string> = {
@@ -59,7 +55,7 @@ export function Button({
   return (
     <button
       className={cn(
-        "lift inline-flex select-none items-center justify-center font-medium outline-none transition focus-visible:ring-2 focus-visible:ring-[#7c6cff]/60 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:transform-none",
+        "btn-base lift inline-flex select-none items-center justify-center font-medium outline-none transition focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:transform-none",
         buttonVariants[variant],
         buttonSizes[size],
         className,
@@ -75,8 +71,7 @@ export function Button({
 
 /* ----------------------------- Inputs ----------------------------- */
 
-const fieldBase =
-  "w-full rounded-xl border border-white/10 bg-black/25 text-slate-100 placeholder:text-slate-500 outline-none transition-all duration-300 focus:border-[#7c6cff]/70 focus:bg-black/35 focus:shadow-[0_0_0_4px_rgba(124,108,255,.14),0_0_22px_-8px_rgba(124,108,255,.9)]";
+const fieldBase = "field-control w-full rounded-xl outline-none transition-all duration-200";
 
 export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return <input className={cn(fieldBase, "h-10 px-3.5 text-sm", className)} {...props} />;
@@ -127,12 +122,10 @@ export function Chip({
     <button
       type="button"
       className={cn(
-        "lift rounded-lg border px-3 py-1.5 text-[13px] transition-all duration-300",
-        active
-          ? "border-[#7c6cff]/60 bg-gradient-to-b from-[#7c6cff]/25 to-[#7c6cff]/10 text-white shadow-[0_6px_18px_-10px_rgba(124,108,255,.95)]"
-          : "border-white/10 bg-white/[0.03] text-slate-400 hover:border-[#7c6cff]/35 hover:bg-white/[0.06] hover:text-slate-100",
+        "chip lift rounded-lg border px-3 py-1.5 text-[13px] transition-all duration-200",
         className,
       )}
+      data-active={active}
       {...props}
     >
       {children}
@@ -160,14 +153,14 @@ export function Segmented<T extends string>({
   return (
     <div
       className={cn(
-        "relative grid rounded-xl border border-white/10 bg-black/30 p-1 backdrop-blur-sm",
+        "segment-control relative grid rounded-xl border p-1",
         className,
       )}
       style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
     >
       <span
         aria-hidden
-        className="absolute inset-y-1 rounded-lg bg-gradient-to-b from-[#7c6cff] to-[#6a56f5] shadow-[0_8px_22px_-10px_rgba(124,108,255,.95)] transition-transform duration-[350ms]"
+        className="segment-thumb absolute inset-y-1 rounded-lg transition-transform duration-[350ms]"
         style={{
           width: `calc((100% - 0.5rem) / ${options.length})`,
           left: "0.25rem",

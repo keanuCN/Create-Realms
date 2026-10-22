@@ -12,7 +12,6 @@ import {
   Menu,
   NotebookPen,
   ShieldCheck,
-  Sparkles,
   X,
 } from "lucide-react";
 import { Badge, cn } from "@/components/ui";
@@ -72,12 +71,8 @@ export default function AppShell({
   const sidebar = (
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-2.5 px-5 pb-6 pt-6">
-        <div className="relative grid size-9 place-items-center rounded-xl bg-gradient-to-br from-[#7c6cff] to-[#4de2c0] text-white shadow-[0_10px_26px_-12px_rgba(124,108,255,1)]">
-          <span
-            aria-hidden
-            className="absolute inset-0 rounded-xl bg-gradient-to-br from-[#7c6cff] to-[#4de2c0] opacity-40 blur-md"
-          />
-          <Sparkles className="relative size-4.5" />
+        <div className="brand-mark grid size-9 place-items-center rounded-xl text-sm font-semibold text-white">
+          <span>造</span>
         </div>
         <div>
           <p className="text-sm font-semibold tracking-wide text-white">造境</p>
@@ -148,7 +143,7 @@ export default function AppShell({
         </div>
 
         <div className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition hover:bg-white/[0.03]">
-          <div className="grid size-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#2a3350] to-[#1a2033] text-xs font-semibold text-slate-200 ring-1 ring-white/10">
+          <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-[#f1f0ed] text-xs font-semibold text-[#34332f] ring-1 ring-[#34332f]/15">
             {user.displayName.slice(0, 1).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">

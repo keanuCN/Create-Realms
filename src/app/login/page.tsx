@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Eye, EyeOff, Sparkles } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { Button, Input, cn, useToast } from "@/components/ui";
 import { api } from "@/lib/client";
 
@@ -33,15 +33,12 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-10">
-      <div className="orb -left-32 top-1/4 size-96 bg-[#7c6cff]/25" />
-      <div className="orb -right-24 bottom-0 size-80 bg-[#4de2c0]/15" style={{ animationDelay: "-6s" }} />
-
+    <div className="login-page relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-10">
       <div className="animate-pop-in glass relative grid w-full max-w-4xl overflow-hidden rounded-3xl shadow-2xl md:grid-cols-[1.1fr_1fr]">
-        <div className="relative hidden flex-col justify-between gap-10 border-r border-white/5 bg-gradient-to-br from-[#141a2a] via-[#101623] to-[#0b1017] p-10 md:flex">
+        <div className="login-story relative hidden flex-col justify-between gap-10 border-r p-10 md:flex">
           <div className="flex items-center gap-2.5">
-            <div className="grid size-10 place-items-center rounded-xl bg-gradient-to-br from-[#7c6cff] to-[#4de2c0] shadow-lg">
-              <Sparkles className="size-5 text-white" />
+            <div className="brand-mark grid size-10 place-items-center rounded-xl text-base font-semibold text-white">
+              造
             </div>
             <div>
               <p className="text-base font-semibold text-white">造境</p>
@@ -50,10 +47,10 @@ export default function LoginPage() {
           </div>
 
           <div className="space-y-6">
-            <h1 className="text-3xl font-semibold leading-snug text-white">
+            <h1 className="font-serif text-3xl font-semibold leading-snug text-white">
               把想法变成
               <br />
-              <span className="bg-gradient-to-r from-[#a99cff] to-[#4de2c0] bg-clip-text text-transparent">
+              <span className="text-[#3d3b37]">
                 能看的画面
               </span>
             </h1>
@@ -80,8 +77,8 @@ export default function LoginPage() {
 
         <div className="p-8 sm:p-10">
           <div className="mb-8 md:hidden">
-            <div className="mb-3 grid size-10 place-items-center rounded-xl bg-gradient-to-br from-[#7c6cff] to-[#4de2c0]">
-              <Sparkles className="size-5 text-white" />
+            <div className="brand-mark mb-3 grid size-10 place-items-center rounded-xl text-base font-semibold text-white">
+              造
             </div>
             <p className="text-lg font-semibold text-white">造境</p>
           </div>

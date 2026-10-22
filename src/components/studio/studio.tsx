@@ -35,7 +35,7 @@ type Tab = "video" | "image";
 
 function StatPill({ label, value }: { label: string; value: number }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5">
+    <span className="studio-stat inline-flex items-center gap-1 rounded-full border px-2 py-0.5">
       <span className="font-semibold tabular-nums text-slate-200">{value}</span>
       <span>{label}</span>
     </span>
@@ -340,9 +340,9 @@ export default function Studio({ displayName }: { displayName: string }) {
   return (
     <div className="mx-auto flex max-w-[1600px] flex-col pb-32 lg:h-[var(--studio-h)] lg:min-h-0 lg:pb-0">
       {/* 紧凑头部：一行放下问候、统计与入口 */}
-      <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <header className="studio-welcome mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
-          <h1 className="text-xl font-semibold tracking-tight text-white">
+          <h1 className="font-serif text-xl font-semibold tracking-tight text-white">
             嗨，{displayName}，<span className="gradient-text">想做点什么？</span>
           </h1>
           <div className="flex items-center gap-2 text-[11px] text-slate-400">
@@ -366,7 +366,7 @@ export default function Studio({ displayName }: { displayName: string }) {
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 items-stretch gap-4 lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)]">
+      <div className="grid min-h-0 flex-1 items-stretch gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
         <section className="panel flex min-h-0 flex-col">
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 pr-3">
           <div className="mb-1">
@@ -418,7 +418,7 @@ export default function Studio({ displayName }: { displayName: string }) {
                         active
                           ? {
                               borderColor: color.from,
-                              background: color.soft,
+                              background: "var(--brand)",
                               boxShadow: `0 8px 22px -12px ${color.from}`,
                             }
                           : undefined
@@ -459,7 +459,7 @@ export default function Studio({ displayName }: { displayName: string }) {
                         active
                           ? {
                               borderColor: color.from,
-                              background: color.soft,
+                              background: "var(--brand)",
                               boxShadow: `0 8px 20px -12px ${color.from}`,
                             }
                           : undefined
@@ -775,7 +775,7 @@ export default function Studio({ displayName }: { displayName: string }) {
 
           <div className="min-h-0 flex-1 overflow-y-auto pr-1">
           {loadingRecent ? (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 2xl:grid-cols-3">
               {Array.from({ length: 6 }).map((_, index) => (
                 <div
                   key={index}
@@ -790,7 +790,7 @@ export default function Studio({ displayName }: { displayName: string }) {
               description="在左边写下你的第一个画面描述，生成结果会出现在这里。"
             />
           ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 2xl:grid-cols-3">
               {recent.map((asset) => (
                 <AssetCard
                   key={asset.id}

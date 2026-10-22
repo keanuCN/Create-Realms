@@ -145,7 +145,7 @@ export default function AdminUsers({ me }: { me: User }) {
                 <tr key={user.id} className="bg-[#0c1119] hover:bg-white/[0.02]">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2.5">
-                      <div className="grid size-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#2a3350] to-[#1a2033] text-[11px] font-semibold">
+                      <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-[#f1f0ed] text-[11px] font-semibold text-[#34332f] ring-1 ring-[#34332f]/10">
                         {user.displayName.slice(0, 1)}
                       </div>
                       <div className="min-w-0">
