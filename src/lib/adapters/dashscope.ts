@@ -82,9 +82,10 @@ export const dashscopeAdapter: ProviderAdapter = {
     const parameters: Record<string, unknown> = {
       duration: req.duration ?? 5,
       watermark: false,
-      prompt_extend: req.promptExpansion !== "disabled",
     };
     if (req.resolution) parameters.resolution = req.resolution.replace("p", "P");
+    if (req.promptOptimizer !== undefined) parameters.prompt_extend = req.promptOptimizer;
+    if (req.audio !== undefined) parameters.audio = req.audio;
 
     if (req.firstFrame || req.lastFrame) {
       const media: { type: string; url: string }[] = [];

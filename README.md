@@ -4,6 +4,20 @@
 
 界面参考 [Uiverse](https://uiverse.io/) 的组件风格做了统一升级：玻璃拟态面板、渐变描边、按钮扫光、卡片悬浮放大、滑动的分段控件与开关、环形渐变加载器，并遵循 `prefers-reduced-motion` 在系统设置「减少动态效果」时自动降级。
 
+### 视频生成的可用控制项
+
+工作台会**按所选模型的能力动态显示**控件（不支持的项不会出现，服务端也会二次校验）：
+
+| 控件 | 说明 |
+| --- | --- |
+| 文生视频 / 图生视频 | 不传图 = 文生视频；传首帧 = 图生视频；首帧 + 尾帧 = 首尾帧过渡 |
+| 图片参考 | 主体 / 风格参考（参考生视频），与首尾帧互斥；目前 MiniMax（最多 9 张）与火山方舟 Seedance 2.5（最多 4 张）支持 |
+| 时长 | **可拖拽滑块**，各模型区间不同（如 H3 Max 5–15 秒、Seedance 2.5 4–30 秒、可灵 2.6 仅 5/10 秒） |
+| 生成数量 | 同一提示词一次提交 1–4 条，各自独立排队与计费 |
+| 生成音频 | 音画同出开关；仅支持的模型显示（可灵 / Seedance / Vidu / PixVerse） |
+| 提示词优化 | MiniMax H3 Max 为「关闭 / 均衡 / 高质量」三档；百炼系为开关（prompt_extend）；不支持的模型不显示 |
+| 分辨率 / 比例 | 各模型可选值不同，比例在传图后自动跟随输入图 |
+
 - **视频**：MiniMax H3 Max / H3、即梦 Seedance 2.5 / 2.0、可灵 3.0 / 2.6、PixVerse V6 Max、Vidu Q3 Pro、通义万相 2.7 / HappyHorse 1.1；全部支持文生视频与图生视频（首帧 / 首尾帧按各家能力）
 - **图片**：MiniMax image-01、豆包 Seedream 5.0、通义万相 2.6，支持多张批量与多种比例
 - **模型设置**：各家 API Key / 凭据可视化填写（加密入库、界面只显示掩码、免重启生效、免费连通性测试）
@@ -196,8 +210,11 @@ Worker（独立进程，SKIP LOCKED 抢任务）
 | `src/lib/models.ts` | 模型目录（供应商 × 模型），加新模型改这里 |
 | `src/worker` | 异步任务 Worker（按 provider 分发提交与轮询） |
 | `src/lib/schema.sql` | 表结构（幂等，启动自动执行） |
-| `scripts/e2e-smoke.mjs` | 端到端冒烟测试（20 项） |
+| `scripts/e2e-smoke.mjs` | 端到端冒烟测试（20 项，需 MINIMAX_MOCK=1） |
+| `scripts/video-features-e2e.mjs` | 视频模块功能测试（13 项，需 MINIMAX_MOCK=1，不产生费用） |
 | `scripts/provider-e2e.mjs` | 模型设置页测试（17 项） |
+| `scripts/test-draft-credentials.mjs` | 「填了未保存也能测」验证（已有凭据时自动跳过写入） |
+| `scripts/real-video-check.mjs` | 真实视频回归（480P 5 秒，会产生少量费用） |
 | `scripts/check-utf8.mjs` | 源码 UTF-8 校验（`pnpm check:utf8`，改文案后建议跑一次） |
 
 ### 加一个新模型 / 新供应商

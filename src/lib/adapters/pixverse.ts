@@ -96,13 +96,15 @@ export const pixverseAdapter: ProviderAdapter = {
   frameInput: "base64",
 
   async submitVideo(ctx, req: VideoSubmitRequest): Promise<{ taskId: string }> {
-    const base = {
+    const base: Record<string, unknown> = {
       model: req.model,
       prompt: req.prompt,
       duration: req.duration ?? 5,
       quality: (req.resolution || "720p").replace("P", "p"),
       ...(req.seed != null ? { seed: req.seed } : {}),
     };
+    // PixVerse 用 generate_audio_switch 控制是否出音频
+    if (req.audio !== undefined) base.generate_audio_switch = req.audio;
 
     if (req.firstFrame && req.lastFrame) {
       const [firstId, lastId] = [

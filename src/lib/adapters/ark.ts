@@ -17,7 +17,11 @@ import {
 
 type ContentItem =
   | { type: "text"; text: string }
-  | { type: "image_url"; image_url: { url: string }; role?: "first_frame" | "last_frame" };
+  | {
+      type: "image_url";
+      image_url: { url: string };
+      role?: "first_frame" | "last_frame" | "reference_image";
+    };
 
 interface ArkError {
   code?: string;
@@ -115,6 +119,16 @@ export const arkAdapter: ProviderAdapter = {
       });
     }
 
+    const hasFrames = Boolean(req.firstFrame || req.lastFrame);
+    const references = hasFrames ? [] : (req.referenceImages ?? []);
+    for (const reference of references) {
+      content.push({
+        type: "image_url",
+        image_url: { url: dataUri(reference) },
+        role: "reference_image",
+      });
+    }
+
     const body: Record<string, unknown> = {
       model: req.model,
       content,
@@ -122,9 +136,11 @@ export const arkAdapter: ProviderAdapter = {
       watermark: false,
     };
     if (req.resolution) body.resolution = req.resolution.replace("P", "p");
-    // 首尾帧场景由输入图决定比例，不能传 ratio
-    if (!req.firstFrame && !req.lastFrame) body.ratio = req.ratio || "16:9";
+    // 首尾帧 / 参考图场景由输入图决定比例，不能传 ratio
+    if (!hasFrames && !references.length) body.ratio = req.ratio || "16:9";
     if (req.seed != null && req.seed >= 0) body.seed = req.seed;
+    // Seedance 2.5 / 2.0 支持音画同出
+    if (req.audio !== undefined) body.generate_audio = req.audio;
 
     const data = await call<{ id?: string }>(ctx, "/contents/generations/tasks", {
       method: "POST",

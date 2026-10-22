@@ -221,6 +221,78 @@ export function Switch({
   );
 }
 
+/* --------------------------- Range slider -------------------------- */
+
+export function RangeSlider({
+  min,
+  max,
+  step = 1,
+  value,
+  onChange,
+  suffix = "s",
+  className,
+}: {
+  min: number;
+  max: number;
+  step?: number;
+  value: number;
+  onChange: (value: number) => void;
+  suffix?: string;
+  className?: string;
+}) {
+  const safeMin = Math.min(min, max);
+  const safeMax = Math.max(min, max);
+  const safeRange = safeMax - safeMin;
+  const percent = safeRange > 0 ? ((value - safeMin) / safeRange) * 100 : 100;
+  const ticks = safeRange > 0 && step > 0 ? Math.round(safeRange / step) : 0;
+
+  return (
+    <div className={cn("select-none", className)}>
+      <div className="relative flex h-9 items-center">
+        <div className="absolute inset-x-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-white/[0.09]" />
+        <div
+          className="absolute left-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-gradient-to-r from-[#7c6cff] to-[#4de2c0] shadow-[0_0_14px_-2px_rgba(124,108,255,.9)]"
+          style={{ width: `${percent}%` }}
+        />
+        {/* 刻度点 */}
+        {ticks > 0 && ticks <= 24
+          ? Array.from({ length: ticks + 1 }).map((_, index) => (
+              <span
+                key={index}
+                className="absolute top-1/2 size-1 -translate-y-1/2 rounded-full bg-white/20"
+                style={{ left: `calc(${(index / ticks) * 100}% - 2px)` }}
+              />
+            ))
+          : null}
+        <input
+          type="range"
+          min={safeMin}
+          max={safeMax}
+          step={step}
+          value={value}
+          onChange={(event) => onChange(Number(event.target.value))}
+          aria-label="时长"
+          className="absolute inset-x-0 top-1/2 h-9 w-full -translate-y-1/2 cursor-grab appearance-none bg-transparent outline-none active:cursor-grabbing [&::-moz-range-thumb]:size-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white [&::-webkit-slider-thumb]:size-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-[0_0_0_4px_rgba(124,108,255,.35),0_6px_16px_-4px_rgba(0,0,0,.9)] [&::-webkit-slider-thumb]:transition-transform [&::-webkit-slider-thumb]:hover:scale-110"
+        />
+      </div>
+      <div className="flex items-center justify-between text-[10px] text-slate-500">
+        <span>
+          {safeMin}
+          {suffix}
+        </span>
+        <span className="rounded-md border border-[#7c6cff]/30 bg-[#7c6cff]/10 px-1.5 py-0.5 font-medium text-[#bdb3ff]">
+          {value}
+          {suffix}
+        </span>
+        <span>
+          {safeMax}
+          {suffix}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 /* ------------------------------ Badge ----------------------------- */
 
 export function Badge({

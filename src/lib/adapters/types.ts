@@ -25,6 +25,12 @@ export interface VideoSubmitRequest {
   ratio?: string;
   firstFrame?: FrameInput | null;
   lastFrame?: FrameInput | null;
+  /** 主体/风格参考图（参考生视频），与首尾帧互斥 */
+  referenceImages?: FrameInput[];
+  /** 是否生成音频；undefined = 用供应商默认值 */
+  audio?: boolean;
+  /** 是否开启提示词扩写；undefined = 用供应商默认值 */
+  promptOptimizer?: boolean;
   promptExpansion?: PromptExpansion;
   seed?: number;
 }

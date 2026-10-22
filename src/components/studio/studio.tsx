@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   BookOpen,
   ChevronRight,
@@ -11,7 +11,7 @@ import {
   Wand2,
 } from "lucide-react";
 import { AssetCard, AssetViewer } from "@/components/asset-card";
-import { ImageDrop, type UploadedImage } from "@/components/studio/image-drop";
+import { ImageDrop, MultiImageDrop, type UploadedImage } from "@/components/studio/image-drop";
 import {
   Badge,
   Button,
@@ -19,6 +19,7 @@ import {
   EmptyState,
   Field,
   Modal,
+  RangeSlider,
   Segmented,
   Switch,
   Textarea,
@@ -56,6 +57,11 @@ export default function Studio({ displayName }: { displayName: string }) {
   const [count, setCount] = useState(1);
   const [optimizer, setOptimizer] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  // 视频专用
+  const [videoCount, setVideoCount] = useState(1);
+  const [audioOn, setAudioOn] = useState(true);
+  const [videoOptimizer, setVideoOptimizer] = useState(true);
+  const [references, setReferences] = useState<UploadedImage[]>([]);
 
   const [recent, setRecent] = useState<AssetWithUser[]>([]);
   const [loadingRecent, setLoadingRecent] = useState(true);
@@ -121,17 +127,26 @@ export default function Studio({ displayName }: { displayName: string }) {
     return () => clearInterval(timer);
   }, [activeJobs, loadRecent]);
 
+  function applyModelDefaults(spec: ReturnType<typeof getModel>) {
+    if (!spec) return;
+    if (spec.defaultResolution) setResolution(spec.defaultResolution);
+    if (spec.defaultDuration) setDuration(spec.defaultDuration);
+    if (spec.defaultRatio) setRatio(spec.defaultRatio);
+    setAudioOn(spec.audioDefault ?? false);
+    setVideoOptimizer(true);
+    setVideoCount(1);
+    setReferences([]);
+    setFirstFrame(null);
+    setLastFrame(null);
+  }
+
   function switchTab(next: Tab) {
     setTab(next);
     const firstProvider = providersForModality(next)[0];
     const firstModel = modelsFor(next, firstProvider)[0];
     setProvider(firstProvider);
     setModelId(firstModel.id);
-    if (firstModel.defaultResolution) setResolution(firstModel.defaultResolution);
-    if (firstModel.defaultDuration) setDuration(firstModel.defaultDuration);
-    if (firstModel.defaultRatio) setRatio(firstModel.defaultRatio);
-    setFirstFrame(null);
-    setLastFrame(null);
+    applyModelDefaults(firstModel);
     setCount(1);
   }
 
@@ -140,11 +155,7 @@ export default function Studio({ displayName }: { displayName: string }) {
     if (!first) return;
     setProvider(next);
     setModelId(first.id);
-    if (first.defaultResolution) setResolution(first.defaultResolution);
-    if (first.defaultDuration) setDuration(first.defaultDuration);
-    if (first.defaultRatio) setRatio(first.defaultRatio);
-    setFirstFrame(null);
-    setLastFrame(null);
+    applyModelDefaults(first);
   }
 
   function pickModel(id: string) {
@@ -154,7 +165,12 @@ export default function Studio({ displayName }: { displayName: string }) {
     if (spec.defaultResolution) setResolution(spec.defaultResolution);
     if (spec.defaultDuration) setDuration(spec.defaultDuration);
     if (spec.defaultRatio) setRatio(spec.defaultRatio);
+    if (spec.supportsAudio) setAudioOn(spec.audioDefault ?? false);
+    setVideoCount(1);
     if (!spec.supportsLastFrame) setLastFrame(null);
+    if (!spec.supportsReferenceImages) setReferences([]);
+    else if (spec.maxReferenceImages)
+      setReferences((prev) => prev.slice(0, spec.maxReferenceImages));
   }
 
   async function openTemplates() {
@@ -194,13 +210,24 @@ export default function Studio({ displayName }: { displayName: string }) {
               prompt,
               resolution,
               duration,
+              n: videoCount,
+              ...(model.supportsAudio ? { audio: audioOn } : {}),
+              ...(model.supportsPromptOptimizer
+                ? modelId === "MiniMax-H3-Max"
+                  ? {
+                      promptExpansion: expansion,
+                      promptOptimizer: expansion !== "disabled",
+                    }
+                  : { promptOptimizer: videoOptimizer }
+                : {}),
               ...(firstFrame || lastFrame
                 ? {
                     firstFrameUploadId: firstFrame?.id,
                     lastFrameUploadId: lastFrame?.id,
                   }
-                : { ratio }),
-              ...(modelId === "MiniMax-H3-Max" ? { promptExpansion: expansion } : {}),
+                : references.length
+                  ? { referenceUploadIds: references.map((item) => item.id) }
+                  : { ratio }),
             }
           : {
               kind: "image",
@@ -212,13 +239,20 @@ export default function Studio({ displayName }: { displayName: string }) {
               ...(model.resolutions?.length ? { resolution } : {}),
             };
 
-      await api("/api/generate", {
+      const result = await api<{ assets?: { id: string }[] }>("/api/generate", {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      toast("任务已提交，正在排队生成", "success");
+      const created = result.assets?.length ?? 1;
+      toast(
+        tab === "video" && created > 1
+          ? `已提交 ${created} 条视频任务，正在排队生成`
+          : "任务已提交，正在排队生成",
+        "success",
+      );
       setFirstFrame(null);
       setLastFrame(null);
+      setReferences([]);
       await loadRecent();
     } catch (error) {
       toast(error instanceof Error ? error.message : "提交失败", "error");
@@ -229,8 +263,6 @@ export default function Studio({ displayName }: { displayName: string }) {
 
   const charLimit = model.maxPrompt;
   const withFrames = Boolean(firstFrame || lastFrame);
-
-  const durations = useMemo(() => model.durations ?? [5], [model]);
   const ratios = model.ratios ?? ["16:9"];
 
   return (
@@ -419,19 +451,39 @@ export default function Studio({ displayName }: { displayName: string }) {
 
             {tab === "video" ? (
               <>
-                <div className="grid grid-cols-2 gap-3">
-                  <ImageDrop
-                    label="首帧（可选）"
-                    value={firstFrame}
-                    onChange={setFirstFrame}
+                {model.supportsReferenceImages ? (
+                  <MultiImageDrop
+                    label="参考图（可选）"
+                    hint={`主体 / 风格参考，最多 ${model.maxReferenceImages ?? 4} 张`}
+                    values={references}
+                    onChange={setReferences}
+                    max={model.maxReferenceImages ?? 4}
+                    disabled={Boolean(firstFrame || lastFrame)}
                   />
-                  <ImageDrop
-                    label="尾帧（可选）"
-                    value={lastFrame}
-                    onChange={setLastFrame}
-                    disabled={!firstFrame || !model.supportsLastFrame}
-                  />
-                </div>
+                ) : null}
+
+                {model.supportsFrames ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <ImageDrop
+                      label="首帧（可选）"
+                      value={firstFrame}
+                      onChange={setFirstFrame}
+                      disabled={references.length > 0}
+                    />
+                    <ImageDrop
+                      label="尾帧（可选）"
+                      value={lastFrame}
+                      onChange={setLastFrame}
+                      disabled={!firstFrame || !model.supportsLastFrame || references.length > 0}
+                    />
+                  </div>
+                ) : null}
+
+                {references.length && (firstFrame || lastFrame) ? (
+                  <p className="rounded-lg border border-amber-500/25 bg-amber-500/[0.08] px-3 py-2 text-[11px] leading-5 text-amber-200">
+                    首尾帧与参考图是两种互斥的方式，请只保留一种。
+                  </p>
+                ) : null}
 
                 <Field label="分辨率">
                   <div className="flex flex-wrap gap-2">
@@ -447,23 +499,19 @@ export default function Studio({ displayName }: { displayName: string }) {
                   </div>
                 </Field>
 
-                <Field label="时长">
-                  <div className="flex flex-wrap gap-2">
-                    {durations.map((item) => (
-                      <Chip
-                        key={item}
-                        active={duration === item}
-                        onClick={() => setDuration(item)}
-                      >
-                        {item}s
-                      </Chip>
-                    ))}
-                  </div>
+                <Field label="时长" hint="拖动选择">
+                  <RangeSlider
+                    min={model.durationRange?.min ?? 5}
+                    max={model.durationRange?.max ?? 10}
+                    step={model.durationRange?.step ?? 1}
+                    value={duration}
+                    onChange={setDuration}
+                  />
                 </Field>
 
-                {withFrames ? (
+                {withFrames || references.length ? (
                   <p className="rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2 text-[11px] leading-5 text-slate-500">
-                    已上传参考帧，画面比例会跟随首帧图片自动适配。
+                    已上传{references.length ? "参考图" : "参考帧"}，画面比例会跟随输入图片自动适配。
                   </p>
                 ) : (
                   <Field label="比例">
@@ -477,28 +525,69 @@ export default function Studio({ displayName }: { displayName: string }) {
                   </Field>
                 )}
 
-                {modelId === "MiniMax-H3-Max" ? (
-                  <Field label="提示词扩写" hint="默认「均衡」效果最稳">
-                    <div className="flex gap-2">
-                      {(
-                        [
-                          ["disabled", "关闭"],
-                          ["balanced", "均衡"],
-                          ["quality", "高质量"],
-                        ] as const
-                      ).map(([value, label]) => (
+                {model.supportsPromptOptimizer ? (
+                  modelId === "MiniMax-H3-Max" ? (
+                    <Field label="提示词优化" hint="默认「均衡」效果最稳">
+                      <div className="flex gap-2">
+                        {(
+                          [
+                            ["disabled", "关闭"],
+                            ["balanced", "均衡"],
+                            ["quality", "高质量"],
+                          ] as const
+                        ).map(([value, label]) => (
+                          <Chip
+                            key={value}
+                            active={expansion === value}
+                            onClick={() => setExpansion(value)}
+                            className="flex-1"
+                          >
+                            {label}
+                          </Chip>
+                        ))}
+                      </div>
+                    </Field>
+                  ) : (
+                    <div className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3.5 py-3 transition hover:border-[#7c6cff]/30">
+                      <div>
+                        <p className="text-[13px] text-slate-200">提示词优化</p>
+                        <p className="mt-0.5 text-[11px] text-slate-500">
+                          {model.promptOptimizerHint ?? "自动补充画面细节"}
+                        </p>
+                      </div>
+                      <Switch checked={videoOptimizer} onChange={setVideoOptimizer} />
+                    </div>
+                  )
+                ) : null}
+
+                {model.supportsAudio ? (
+                  <div className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3.5 py-3 transition hover:border-[#7c6cff]/30">
+                    <div>
+                      <p className="text-[13px] text-slate-200">生成音频</p>
+                      <p className="mt-0.5 text-[11px] text-slate-500">
+                        {audioOn ? "音画同出（对白 / 音效 / 配乐）" : "只出画面，不生成声音"}
+                      </p>
+                    </div>
+                    <Switch checked={audioOn} onChange={setAudioOn} />
+                  </div>
+                ) : null}
+
+                <Field label="生成数量" hint={`同一提示词生成多条，最多 ${model.maxVideos ?? 4} 条`}>
+                  <div className="flex flex-wrap gap-2">
+                    {Array.from({ length: model.maxVideos ?? 4 }, (_, index) => index + 1).map(
+                      (item) => (
                         <Chip
-                          key={value}
-                          active={expansion === value}
-                          onClick={() => setExpansion(value)}
+                          key={item}
+                          active={videoCount === item}
+                          onClick={() => setVideoCount(item)}
                           className="flex-1"
                         >
-                          {label}
+                          {item} 条
                         </Chip>
-                      ))}
-                    </div>
-                  </Field>
-                ) : null}
+                      ),
+                    )}
+                  </div>
+                </Field>
               </>
             ) : (
               <>

@@ -99,6 +99,30 @@ async function readFrame(
   return { data: await readMedia(storageKey), mime };
 }
 
+/** 主体/风格参考图（参考生视频） */
+async function readReferences(
+  params: Record<string, unknown>,
+): Promise<{ data: Buffer; mime: string }[]> {
+  const list = params.references;
+  if (!Array.isArray(list)) return [];
+  const frames: { data: Buffer; mime: string }[] = [];
+  for (const item of list) {
+    if (!item || typeof item !== "object") continue;
+    const entry = item as { key?: unknown; mime?: unknown };
+    if (typeof entry.key !== "string") continue;
+    frames.push({
+      data: await readMedia(entry.key),
+      mime: typeof entry.mime === "string" ? entry.mime : "image/png",
+    });
+  }
+  return frames;
+}
+
+function paramBoolean(params: Record<string, unknown>, key: string) {
+  const value = params[key];
+  return typeof value === "boolean" ? value : undefined;
+}
+
 function requireAdapter(job: JobRow) {
   const adapter = getAdapter(job.provider);
   if (!adapter) {
@@ -168,6 +192,8 @@ async function submitJob(job: JobRow) {
       duration: paramNumber(job.params, "duration"),
       ratio: paramString(job.params, "ratio"),
       seed: paramNumber(job.params, "seed"),
+      audio: paramBoolean(job.params, "audio"),
+      promptOptimizer: paramBoolean(job.params, "promptOptimizer"),
       promptExpansion: paramString(job.params, "promptExpansion") as
         | "disabled"
         | "balanced"
@@ -175,6 +201,7 @@ async function submitJob(job: JobRow) {
         | undefined,
       firstFrame: await readFrame(job.params, "firstFrame"),
       lastFrame: await readFrame(job.params, "lastFrame"),
+      referenceImages: await readReferences(job.params),
     });
 
     await sql`

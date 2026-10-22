@@ -1,5 +1,11 @@
 export type Modality = "video" | "image";
 
+export interface DurationRange {
+  min: number;
+  max: number;
+  step?: number;
+}
+
 export interface ModelSpec {
   id: string;
   provider: string;
@@ -9,7 +15,8 @@ export interface ModelSpec {
   badge?: string;
   resolutions?: string[];
   defaultResolution?: string;
-  durations?: number[];
+  /** 时长区间（视频用滑块选择） */
+  durationRange?: DurationRange;
   defaultDuration?: number;
   ratios?: string[];
   defaultRatio?: string;
@@ -17,6 +24,17 @@ export interface ModelSpec {
   supportsFrames?: boolean;
   /** 支持尾帧（首尾帧生成） */
   supportsLastFrame?: boolean;
+  /** 支持多张主体/风格参考图（参考生视频） */
+  supportsReferenceImages?: boolean;
+  maxReferenceImages?: number;
+  /** 支持音画同出 */
+  supportsAudio?: boolean;
+  audioDefault?: boolean;
+  /** 支持提示词扩写 */
+  supportsPromptOptimizer?: boolean;
+  promptOptimizerHint?: string;
+  /** 单次最多生成几条（同一提示词多份） */
+  maxVideos?: number;
   maxPrompt: number;
   maxImages?: number;
   note?: string;
@@ -41,7 +59,8 @@ export const PROVIDER_ORDER = [
   "dashscope",
 ];
 
-const COMMON_RATIOS = ["16:9", "9:16", "1:1", "4:3", "3:4"];
+const WIDE_RATIOS = ["16:9", "9:16", "1:1", "4:3", "3:4", "21:9"];
+const STD_RATIOS = ["16:9", "9:16", "1:1", "4:3", "3:4"];
 
 export const MODELS: ModelSpec[] = [
   /* ------------------------------- MiniMax ------------------------------- */
@@ -54,12 +73,17 @@ export const MODELS: ModelSpec[] = [
     badge: "推荐",
     resolutions: ["768P", "480P"],
     defaultResolution: "768P",
-    durations: [5, 6, 8, 10, 12, 15],
+    durationRange: { min: 5, max: 15 },
     defaultDuration: 5,
-    ratios: ["16:9", "9:16", "1:1", "4:3", "3:4", "21:9"],
+    ratios: WIDE_RATIOS,
     defaultRatio: "16:9",
     supportsFrames: true,
     supportsLastFrame: true,
+    supportsReferenceImages: true,
+    maxReferenceImages: 9,
+    supportsPromptOptimizer: true,
+    promptOptimizerHint: "支持关闭 / 均衡 / 高质量三档扩写",
+    maxVideos: 4,
     maxPrompt: 7000,
   },
   {
@@ -70,12 +94,15 @@ export const MODELS: ModelSpec[] = [
     tagline: "高质量 · 768P/2K · 4–15 秒",
     resolutions: ["2K", "768P"],
     defaultResolution: "768P",
-    durations: Array.from({ length: 12 }, (_, i) => i + 4),
+    durationRange: { min: 4, max: 15 },
     defaultDuration: 6,
-    ratios: ["16:9", "9:16", "1:1", "4:3", "3:4", "21:9"],
+    ratios: WIDE_RATIOS,
     defaultRatio: "16:9",
     supportsFrames: true,
     supportsLastFrame: true,
+    supportsReferenceImages: true,
+    maxReferenceImages: 9,
+    maxVideos: 4,
     maxPrompt: 7000,
   },
   {
@@ -86,6 +113,7 @@ export const MODELS: ModelSpec[] = [
     tagline: "文生图 · 最多一次 4 张",
     ratios: ["1:1", "16:9", "4:3", "3:2", "2:3", "3:4", "9:16", "21:9"],
     defaultRatio: "1:1",
+    supportsPromptOptimizer: true,
     maxPrompt: 1500,
     maxImages: 4,
   },
@@ -96,16 +124,19 @@ export const MODELS: ModelSpec[] = [
     provider: "kling",
     modality: "video",
     label: "可灵 3.0",
-    tagline: "最高 4K · 3–15 秒 · 支持首尾帧",
+    tagline: "最高 4K · 3–15 秒 · 支持首尾帧与音频",
     badge: "推荐",
     resolutions: ["1080p", "720p", "4k"],
     defaultResolution: "1080p",
-    durations: [3, 5, 8, 10, 15],
+    durationRange: { min: 3, max: 15 },
     defaultDuration: 5,
     ratios: ["16:9", "9:16", "1:1"],
     defaultRatio: "16:9",
     supportsFrames: true,
     supportsLastFrame: true,
+    supportsAudio: true,
+    audioDefault: true,
+    maxVideos: 4,
     maxPrompt: 2500,
   },
   {
@@ -113,15 +144,18 @@ export const MODELS: ModelSpec[] = [
     provider: "kling",
     modality: "video",
     label: "可灵 2.6",
-    tagline: "5/10 秒 · 720p/1080p",
+    tagline: "5/10 秒 · 720p/1080p · 支持音频",
     resolutions: ["1080p", "720p"],
     defaultResolution: "1080p",
-    durations: [5, 10],
+    durationRange: { min: 5, max: 10, step: 5 },
     defaultDuration: 5,
     ratios: ["16:9", "9:16", "1:1"],
     defaultRatio: "16:9",
     supportsFrames: true,
     supportsLastFrame: true,
+    supportsAudio: true,
+    audioDefault: true,
+    maxVideos: 4,
     maxPrompt: 2500,
   },
   {
@@ -132,11 +166,14 @@ export const MODELS: ModelSpec[] = [
     tagline: "更快 · 3–15 秒 · 仅首帧",
     resolutions: ["1080p", "720p"],
     defaultResolution: "1080p",
-    durations: [3, 5, 8, 10, 15],
+    durationRange: { min: 3, max: 15 },
     defaultDuration: 5,
     ratios: ["16:9", "9:16", "1:1"],
     defaultRatio: "16:9",
     supportsFrames: true,
+    supportsAudio: true,
+    audioDefault: true,
+    maxVideos: 4,
     maxPrompt: 2500,
   },
 
@@ -146,16 +183,21 @@ export const MODELS: ModelSpec[] = [
     provider: "volcengine-ark",
     modality: "video",
     label: "Seedance 2.5",
-    tagline: "支持音频 · 480p–1080p · 4–30 秒",
+    tagline: "音画同出 · 480p–1080p · 4–30 秒",
     badge: "推荐",
     resolutions: ["1080p", "720p", "480p"],
     defaultResolution: "720p",
-    durations: [5, 8, 10, 15, 20, 30],
+    durationRange: { min: 4, max: 30 },
     defaultDuration: 5,
-    ratios: ["16:9", "9:16", "1:1", "4:3", "3:4", "21:9"],
+    ratios: WIDE_RATIOS,
     defaultRatio: "16:9",
     supportsFrames: true,
     supportsLastFrame: true,
+    supportsReferenceImages: true,
+    maxReferenceImages: 4,
+    supportsAudio: true,
+    audioDefault: true,
+    maxVideos: 4,
     maxPrompt: 2000,
   },
   {
@@ -166,12 +208,15 @@ export const MODELS: ModelSpec[] = [
     tagline: "更快更省 · 480p/720p · 4–15 秒",
     resolutions: ["720p", "480p"],
     defaultResolution: "720p",
-    durations: [4, 5, 8, 10, 15],
+    durationRange: { min: 4, max: 15 },
     defaultDuration: 5,
-    ratios: ["16:9", "9:16", "1:1", "4:3", "3:4", "21:9"],
+    ratios: WIDE_RATIOS,
     defaultRatio: "16:9",
     supportsFrames: true,
     supportsLastFrame: true,
+    supportsAudio: true,
+    audioDefault: true,
+    maxVideos: 4,
     maxPrompt: 2000,
   },
   {
@@ -185,6 +230,7 @@ export const MODELS: ModelSpec[] = [
     defaultResolution: "2K",
     ratios: ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3"],
     defaultRatio: "1:1",
+    supportsPromptOptimizer: true,
     maxPrompt: 3000,
     maxImages: 4,
   },
@@ -199,11 +245,14 @@ export const MODELS: ModelSpec[] = [
     badge: "推荐",
     resolutions: ["1080p", "720p", "540p", "360p"],
     defaultResolution: "720p",
-    durations: [5, 8, 10, 15],
+    durationRange: { min: 1, max: 15 },
     defaultDuration: 5,
-    ratios: ["16:9", "9:16", "1:1", "4:3", "3:4", "2:3", "3:2", "21:9"],
+    ratios: [...STD_RATIOS, "2:3", "3:2", "21:9"],
     defaultRatio: "16:9",
     supportsFrames: true,
+    supportsAudio: true,
+    audioDefault: false,
+    maxVideos: 4,
     maxPrompt: 2000,
     note: "V6 Max 支持文生视频与首帧图生视频，不支持首尾帧",
   },
@@ -215,12 +264,15 @@ export const MODELS: ModelSpec[] = [
     tagline: "支持首尾帧 · 360p–1080p",
     resolutions: ["1080p", "720p", "540p", "360p"],
     defaultResolution: "720p",
-    durations: [5, 8, 10, 15],
+    durationRange: { min: 1, max: 15 },
     defaultDuration: 5,
-    ratios: ["16:9", "9:16", "1:1", "4:3", "3:4"],
+    ratios: STD_RATIOS,
     defaultRatio: "16:9",
     supportsFrames: true,
     supportsLastFrame: true,
+    supportsAudio: true,
+    audioDefault: false,
+    maxVideos: 4,
     maxPrompt: 2000,
   },
   {
@@ -231,12 +283,15 @@ export const MODELS: ModelSpec[] = [
     tagline: "性价比 · 5/8/10 秒",
     resolutions: ["1080p", "720p", "540p"],
     defaultResolution: "720p",
-    durations: [5, 8, 10],
+    durationRange: { min: 5, max: 10, step: 5 },
     defaultDuration: 5,
-    ratios: ["16:9", "9:16", "1:1", "4:3", "3:4"],
+    ratios: STD_RATIOS,
     defaultRatio: "16:9",
     supportsFrames: true,
     supportsLastFrame: true,
+    supportsAudio: true,
+    audioDefault: false,
+    maxVideos: 4,
     maxPrompt: 2000,
   },
 
@@ -250,12 +305,15 @@ export const MODELS: ModelSpec[] = [
     badge: "推荐",
     resolutions: ["1080p", "720p", "540p"],
     defaultResolution: "720p",
-    durations: [5, 8, 10, 12, 16],
+    durationRange: { min: 1, max: 16 },
     defaultDuration: 5,
-    ratios: ["16:9", "9:16", "1:1", "4:3", "3:4"],
+    ratios: STD_RATIOS,
     defaultRatio: "16:9",
     supportsFrames: true,
     supportsLastFrame: true,
+    supportsAudio: true,
+    audioDefault: true,
+    maxVideos: 4,
     maxPrompt: 2000,
   },
   {
@@ -263,15 +321,18 @@ export const MODELS: ModelSpec[] = [
     provider: "vidu",
     modality: "video",
     label: "Vidu Q3 Turbo",
-    tagline: "更快 · 540p–1080p",
+    tagline: "更快 · 540p–1080p · 支持音频",
     resolutions: ["1080p", "720p", "540p"],
     defaultResolution: "720p",
-    durations: [5, 8, 10, 16],
+    durationRange: { min: 1, max: 16 },
     defaultDuration: 5,
-    ratios: ["16:9", "9:16", "1:1", "4:3", "3:4"],
+    ratios: STD_RATIOS,
     defaultRatio: "16:9",
     supportsFrames: true,
     supportsLastFrame: true,
+    supportsAudio: true,
+    audioDefault: true,
+    maxVideos: 4,
     maxPrompt: 2000,
   },
 
@@ -285,13 +346,16 @@ export const MODELS: ModelSpec[] = [
     badge: "推荐",
     resolutions: ["1080P", "720P", "480P"],
     defaultResolution: "720P",
-    durations: [5, 8, 10, 12, 15],
+    durationRange: { min: 3, max: 15 },
     defaultDuration: 5,
-    ratios: ["16:9", "9:16", "1:1", "4:3", "3:4", "21:9"],
+    ratios: WIDE_RATIOS,
     defaultRatio: "16:9",
     supportsFrames: true,
+    supportsPromptOptimizer: true,
+    promptOptimizerHint: "对应百炼的提示词改写（prompt_extend）",
+    maxVideos: 4,
     maxPrompt: 2000,
-    note: "选择首帧后自动改用 happyhorse-1.1-i2v",
+    note: "选择参考图后自动改用 happyhorse-1.1-i2v",
   },
   {
     id: "wan2.7-t2v",
@@ -301,14 +365,16 @@ export const MODELS: ModelSpec[] = [
     tagline: "720P/1080P · 2–15 秒 · 支持首尾帧",
     resolutions: ["1080P", "720P"],
     defaultResolution: "720P",
-    durations: [5, 8, 10, 15],
+    durationRange: { min: 2, max: 15 },
     defaultDuration: 5,
-    ratios: ["16:9", "9:16", "1:1", "4:3", "3:4"],
+    ratios: STD_RATIOS,
     defaultRatio: "16:9",
     supportsFrames: true,
     supportsLastFrame: true,
+    supportsPromptOptimizer: true,
+    maxVideos: 4,
     maxPrompt: 2000,
-    note: "选择图片后自动改用 wan2.7-i2v",
+    note: "选择首帧后自动改用 wan2.7-i2v",
   },
   {
     id: "wan2.6-t2i",
@@ -320,6 +386,7 @@ export const MODELS: ModelSpec[] = [
     defaultResolution: "1280",
     ratios: ["1:1", "4:3", "3:4", "16:9", "9:16"],
     defaultRatio: "1:1",
+    supportsPromptOptimizer: true,
     maxPrompt: 2000,
     maxImages: 4,
   },
@@ -354,4 +421,21 @@ export function defaultModel(modality: Modality, provider?: string): ModelSpec {
   return pool[0] ?? MODELS[0];
 }
 
-export { COMMON_RATIOS };
+/** 时长是否在该模型允许范围内 */
+export function durationAllowed(model: ModelSpec, duration: number): boolean {
+  const range = model.durationRange;
+  if (!range) return false;
+  if (!Number.isInteger(duration)) return false;
+  if (duration < range.min || duration > range.max) return false;
+  const step = range.step ?? 1;
+  return (duration - range.min) % step === 0;
+}
+
+export function durationOptions(model: ModelSpec): number[] {
+  const range = model.durationRange;
+  if (!range) return [];
+  const step = range.step ?? 1;
+  const list: number[] = [];
+  for (let value = range.min; value <= range.max; value += step) list.push(value);
+  return list;
+}

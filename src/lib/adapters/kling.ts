@@ -94,6 +94,11 @@ export const klingAdapter: ProviderAdapter = {
     const settings: Record<string, unknown> = {
       resolution: (req.resolution || "1080p").toLowerCase(),
       duration: req.duration ?? 5,
+    };
+    // 可灵用 settings.audio 控制音画同出
+    if (req.audio !== undefined) settings.audio = req.audio ? "native" : "off";
+
+    const options: Record<string, unknown> = {
       watermark_info: { enabled: false },
     };
 
@@ -111,11 +116,11 @@ export const klingAdapter: ProviderAdapter = {
       if (req.lastFrame) {
         contents.push({ type: "last_frame", url: dataUri(req.lastFrame) });
       }
-      body = { contents, settings };
+      body = { contents, settings, options };
     } else {
       path = `/text-to-video/${req.model}`;
       settings.aspect_ratio = req.ratio || "16:9";
-      body = { prompt: req.prompt, settings };
+      body = { prompt: req.prompt, settings, options };
     }
 
     const response = await call<Record<string, unknown>>(ctx, path, {

@@ -61,7 +61,7 @@ interface ContentItem {
   type: "text" | "image_url";
   text?: string;
   image_url?: { url: string };
-  role?: "first_frame" | "last_frame";
+  role?: "first_frame" | "last_frame" | "reference_image";
 }
 
 interface RawVideoTask {
@@ -110,15 +110,30 @@ export const minimaxAdapter: ProviderAdapter = {
     }
 
     const hasFrames = Boolean(req.firstFrame || req.lastFrame);
+    const references = hasFrames ? [] : (req.referenceImages ?? []);
+    for (const reference of references) {
+      content.push({
+        type: "image_url",
+        image_url: { url: dataUri(reference) },
+        role: "reference_image",
+      });
+    }
+
     const body: Record<string, unknown> = {
       model: req.model,
       content,
       resolution: req.resolution || "768P",
       duration: req.duration || 5,
     };
-    if (!hasFrames) body.ratio = req.ratio || "16:9";
-    if (req.model === "MiniMax-H3-Max" && req.promptExpansion) {
-      body.extra = { prompt_expansion_mode: req.promptExpansion };
+    // 文生视频必须显式给比例；图生 / 参考生视频由输入图决定
+    if (!hasFrames && !references.length) body.ratio = req.ratio || "16:9";
+
+    if (req.model === "MiniMax-H3-Max") {
+      const mode =
+        req.promptOptimizer === false
+          ? "disabled"
+          : (req.promptExpansion ?? "balanced");
+      body.extra = { prompt_expansion_mode: mode };
     }
 
     const data = await call<{ task_id?: string }>(ctx, "/v2/video_generation", {

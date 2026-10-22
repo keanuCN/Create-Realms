@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { requireApiUser, fail, ok, handleApiError, ApiError } from "@/lib/http";
 import { createAsset } from "@/lib/assets";
-import { getModel, providerLabel } from "@/lib/models";
+import { durationAllowed, getModel, providerLabel } from "@/lib/models";
 import { sql } from "@/lib/db";
 import { isProviderReady } from "@/lib/providers";
 
@@ -15,12 +15,15 @@ const schema = z.object({
   ratio: z.string().optional(),
   resolution: z.string().optional(),
   duration: z.number().int().optional(),
+  /** 生成数量：视频为同一提示词生成多条，图片为多张 */
   n: z.number().int().min(1).max(4).optional(),
   seed: z.number().int().optional(),
   promptOptimizer: z.boolean().optional(),
   promptExpansion: z.enum(["disabled", "balanced", "quality"]).optional(),
+  audio: z.boolean().optional(),
   firstFrameUploadId: z.string().uuid().optional(),
   lastFrameUploadId: z.string().uuid().optional(),
+  referenceUploadIds: z.array(z.string().uuid()).max(9).optional(),
 });
 
 async function resolveUpload(userId: string, id?: string) {
@@ -58,30 +61,54 @@ export async function POST(req: Request) {
     }
 
     const params: Record<string, unknown> = {};
+    let count = 1;
 
     if (input.kind === "video") {
-      const resolution = input.resolution ?? model.defaultResolution ?? "768P";
-      if (!model.resolutions?.includes(resolution)) {
+      const resolution = input.resolution ?? model.defaultResolution;
+      if (resolution && !model.resolutions?.includes(resolution)) {
         throw new ApiError("不支持的分辨率", 400);
       }
       const duration = input.duration ?? model.defaultDuration ?? 5;
-      if (!model.durations?.includes(duration)) {
-        throw new ApiError("不支持的时长", 400);
+      if (!durationAllowed(model, duration)) {
+        const range = model.durationRange;
+        throw new ApiError(
+          range ? `时长需要在 ${range.min}–${range.max} 秒之间` : "不支持的时长",
+          400,
+        );
       }
       params.resolution = resolution;
       params.duration = duration;
 
-      if (input.firstFrameUploadId || input.lastFrameUploadId) {
-        if (!model.supportsFrames) {
-          throw new ApiError("该模型不支持参考图生视频", 400);
+      const first = await resolveUpload(user.id, input.firstFrameUploadId);
+      const last = await resolveUpload(user.id, input.lastFrameUploadId);
+      const referenceIds = input.referenceUploadIds ?? [];
+      const references = [];
+      for (const id of referenceIds) {
+        const upload = await resolveUpload(user.id, id);
+        if (upload) references.push(upload);
+      }
+
+      const hasFrames = Boolean(first || last);
+      if (hasFrames || references.length) {
+        // 首尾帧与参考图是两种互斥的生成方式
+        if (hasFrames && references.length) {
+          throw new ApiError("首尾帧与参考图不能同时使用，请二选一", 400);
         }
-        if (input.lastFrameUploadId && !model.supportsLastFrame) {
-          throw new ApiError("该模型不支持尾帧，请只上传首帧", 400);
+        if (hasFrames) {
+          if (!model.supportsFrames) throw new ApiError("该模型不支持参考图生视频", 400);
+          if (last && !first) throw new ApiError("使用尾帧时必须同时提供首帧", 400);
+          if (last && !model.supportsLastFrame) {
+            throw new ApiError("该模型不支持尾帧，请只上传首帧", 400);
+          }
         }
-        const first = await resolveUpload(user.id, input.firstFrameUploadId);
-        const last = await resolveUpload(user.id, input.lastFrameUploadId);
-        if (last && !first) {
-          throw new ApiError("使用尾帧时必须同时提供首帧", 400);
+        if (references.length) {
+          if (!model.supportsReferenceImages) {
+            throw new ApiError(`「${model.label}」不支持参考图，请改用首帧或换个模型`, 400);
+          }
+          const max = model.maxReferenceImages ?? 4;
+          if (references.length > max) {
+            throw new ApiError(`该模型最多支持 ${max} 张参考图`, 400);
+          }
         }
         if (first) {
           params.firstFrameKey = first.storage_key;
@@ -91,6 +118,12 @@ export async function POST(req: Request) {
           params.lastFrameKey = last.storage_key;
           params.lastFrameMime = last.mime;
         }
+        if (references.length) {
+          params.references = references.map((item) => ({
+            key: item.storage_key,
+            mime: item.mime,
+          }));
+        }
       } else {
         const ratio = input.ratio ?? model.defaultRatio ?? "16:9";
         if (!model.ratios?.includes(ratio)) {
@@ -99,8 +132,28 @@ export async function POST(req: Request) {
         params.ratio = ratio;
       }
 
-      if (input.promptExpansion) {
+      if (input.promptOptimizer === false) {
+        params.promptOptimizer = false;
+      } else if (input.promptOptimizer === true) {
+        if (!model.supportsPromptOptimizer) {
+          throw new ApiError(`「${model.label}」不支持提示词优化`, 400);
+        }
+        params.promptOptimizer = true;
+      }
+      if (input.promptExpansion && model.id === "MiniMax-H3-Max") {
         params.promptExpansion = input.promptExpansion;
+      }
+
+      if (input.audio !== undefined) {
+        if (!model.supportsAudio) {
+          throw new ApiError(`「${model.label}」不支持音频开关`, 400);
+        }
+        params.audio = input.audio;
+      }
+
+      count = Math.min(Math.max(input.n ?? 1, 1), model.maxVideos ?? 4);
+      if (input.n && input.n > (model.maxVideos ?? 4)) {
+        throw new ApiError(`该模型单次最多生成 ${model.maxVideos ?? 4} 条`, 400);
       }
     } else {
       const ratio = input.ratio ?? model.defaultRatio ?? "1:1";
@@ -118,22 +171,34 @@ export async function POST(req: Request) {
         }
         params.resolution = resolution;
       }
+      // 图片的「数量」由适配器在一次请求里完成，不需要拆成多条任务
+      const first = await resolveUpload(user.id, input.firstFrameUploadId);
+      if (first) {
+        params.firstFrameKey = first.storage_key;
+        params.firstFrameMime = first.mime;
+      }
     }
 
-    const asset = await createAsset({
-      userId: user.id,
-      kind: input.kind,
-      provider: model.provider,
-      model: model.id,
-      prompt,
-      params,
-    });
-
-    if (input.title) {
-      await sql`UPDATE assets SET title = ${input.title} WHERE id = ${asset.id}`;
+    const assets = [];
+    for (let index = 0; index < count; index += 1) {
+      const asset = await createAsset({
+        userId: user.id,
+        kind: input.kind,
+        provider: model.provider,
+        model: model.id,
+        prompt,
+        params:
+          count > 1 ? { ...params, variant: index + 1, batchSize: count } : params,
+      });
+      assets.push(asset);
     }
 
-    return ok({ asset }, { status: 201 });
+    if (input.title && assets[0]) {
+      await sql`UPDATE assets SET title = ${input.title} WHERE id = ${assets[0].id}`;
+    }
+
+    // asset 保留给旧调用方；assets 是本次批量创建的全部任务
+    return ok({ asset: assets[0], assets }, { status: 201 });
   } catch (error) {
     return handleApiError(error);
   }

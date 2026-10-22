@@ -73,6 +73,8 @@ export const viduAdapter: ProviderAdapter = {
       ...(req.seed != null ? { seed: req.seed } : {}),
     };
     if (req.resolution) payload.resolution = req.resolution.replace("P", "p");
+    // Vidu 的 audio 控制音画直出（含台词与音效）
+    if (req.audio !== undefined) payload.audio = req.audio;
 
     let path = "/ent/v2/text2video";
     if (req.firstFrame && req.lastFrame) {
