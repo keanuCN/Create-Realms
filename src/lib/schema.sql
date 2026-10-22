@@ -99,3 +99,16 @@ CREATE TABLE IF NOT EXISTS system_status (
   value jsonb NOT NULL DEFAULT '{}'::jsonb,
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- Provider API keys, editable from the admin UI. Keys are encrypted at rest.
+CREATE TABLE IF NOT EXISTS provider_configs (
+  provider text PRIMARY KEY,
+  api_key_enc text,
+  api_base text,
+  enabled boolean NOT NULL DEFAULT true,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  updated_by uuid REFERENCES users(id) ON DELETE SET NULL,
+  last_check_at timestamptz,
+  last_check_ok boolean,
+  last_check_message text
+);

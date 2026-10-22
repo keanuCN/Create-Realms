@@ -3,7 +3,8 @@ import { requireApiUser, fail, ok, handleApiError, ApiError } from "@/lib/http";
 import { createAsset } from "@/lib/assets";
 import { getModel } from "@/lib/models";
 import { sql } from "@/lib/db";
-import { env, hasApiKey } from "@/lib/env";
+import { env } from "@/lib/env";
+import { isProviderReady } from "@/lib/providers";
 
 export const runtime = "nodejs";
 
@@ -35,9 +36,9 @@ async function resolveUpload(userId: string, id?: string) {
 export async function POST(req: Request) {
   try {
     const user = await requireApiUser();
-    if (!hasApiKey() && !env.minimax.mock) {
+    if (!env.minimax.mock && !(await isProviderReady("minimax"))) {
       throw new ApiError(
-        "服务端还没有配置 MINIMAX_API_KEY，请联系管理员在 .env 中补上后重启服务。",
+        "还没有配置 MiniMax API Key，请让管理员到「模型设置」页面填写。",
         503,
       );
     }

@@ -33,6 +33,8 @@ export const env = {
   },
   allowSignup: bool(process.env.ALLOW_SIGNUP, false),
   sessionDays: Number(process.env.SESSION_DAYS || 30),
+  // Used to encrypt provider API keys stored in the database.
+  appSecret: process.env.APP_SECRET || "aigc-studio-default-app-secret",
 };
 
 export function hasApiKey() {

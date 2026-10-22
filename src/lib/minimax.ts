@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { env } from "./env";
 import { errorCodeFromStatus } from "./errors";
+import { getProviderRuntime } from "./providers";
 
 export class MinimaxError extends Error {
   code: string;
@@ -39,10 +40,26 @@ async function apiFetch<T>(
   init: RequestInit,
   timeoutMs = 120_000,
 ): Promise<T> {
-  const res = await fetch(`${env.minimax.apiBase}${path}`, {
+  const runtime = await getProviderRuntime("minimax");
+  if (!runtime.apiKey) {
+    throw new MinimaxError(
+      "还没有配置 MiniMax API Key，请让管理员到「模型设置」页面填写",
+      "no_key",
+      503,
+    );
+  }
+  if (!runtime.enabled) {
+    throw new MinimaxError(
+      "MiniMax 供应商已被管理员停用，请到「模型设置」中启用",
+      "disabled",
+      503,
+    );
+  }
+
+  const res = await fetch(`${runtime.apiBase}${path}`, {
     ...init,
     headers: {
-      Authorization: `Bearer ${env.minimax.apiKey}`,
+      Authorization: `Bearer ${runtime.apiKey}`,
       "Content-Type": "application/json",
       ...(init.headers ?? {}),
     },

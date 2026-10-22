@@ -4,6 +4,7 @@
 
 - **视频**：MiniMax H3 Max（极速）、MiniMax H3（2K 高质量）；支持文生视频、图生视频（首帧 / 首尾帧）
 - **图片**：MiniMax image-01，支持文生图、多张批量、多种比例
+- **模型设置**：各家 API Key 可视化填写（加密入库、界面只显示掩码、免重启生效）
 - **账号**：管理员开号，登录使用；不限制用量
 - **作品库**：历史、搜索、收藏、下载、公开分享链接
 - **提示词库**：个人 / 共享大厅，一键复用
@@ -16,7 +17,6 @@
 
 - 一台**常开**的 Windows 机器或内网服务器
 - 安装 [Docker Desktop](https://www.docker.com/products/docker-desktop/)（Windows 需要 WSL2）
-- MiniMax API Key：<https://platform.minimax.cn/user-center/basic-information/interface-key>
 
 ### 1. 配置
 
@@ -26,11 +26,18 @@ Copy-Item .env.example .env
 notepad .env
 ```
 
-至少改这两项：
+只需要改这一项（**必须改**）：
+
+```ini
+ADMIN_PASSWORD=换成一个强密码
+```
+
+API Key **不用写在这里**：启动后登录管理员账号，进「模型设置」页面可视化填写即可（支持多家供应商，加密存储、免重启生效）。
+
+如果想第一次启动就能用，也可以顺手填：
 
 ```ini
 MINIMAX_API_KEY=你的Key
-ADMIN_PASSWORD=换成一个强密码
 ```
 
 ### 2. 启动
@@ -101,6 +108,31 @@ docker run --rm -v aigc_media:/data -v ${PWD}:/backup alpine tar czf /backup/med
 docker compose up -d --build
 ```
 
+### 6. 配置各家模型 Key（模型设置）
+
+登录管理员账号 → 左侧「模型设置」。这里可以可视化填写多家供应商的 API Key，**保存后立即生效，不需要改文件、不需要重启容器**。
+
+| 供应商 | 状态 | 能生成什么 |
+| --- | --- | --- |
+| MiniMax 海螺 | ✅ 已接入 | 视频（H3 / H3 Max）+ 图片（image-01） |
+| 即梦 / 豆包（火山方舟） | 待接入 | 视频（Seedance）+ 图片（Seedream） |
+| 可灵 AI | 待接入 | 视频 |
+| OpenAI | 待接入 | 图片（gpt-image）+ 视频（Sora） |
+| Google AI | 待接入 | 图片（Imagen）+ 视频（Veo） |
+| Runway | 待接入 | 视频 |
+
+页面上每家供应商都有：
+
+- **API Key**：粘贴后保存；界面上永远只显示掩码（`sk-cp-••••••••dpOM`），无法回显完整 Key
+- **Base URL**：国内站 / 国际站切换（例如 MiniMax 国际站填 `https://api.minimax.io`）
+- **启用开关**：临时停用某家供应商，不用删除 Key
+- **测试连接**：不发真实生成请求、不花钱，只校验 Key 是否有效（会记录上次测试结果）
+
+> 「待接入」的供应商可以先存 Key，等适配器写好会自动生效，不用再改配置。
+
+**⚠️ 关于 `APP_SECRET`**：数据库里的 Key 用 AES-256-GCM 加密保存，加密凭据是 `.env` 里的 `APP_SECRET`。
+请把它当成密码保管，并且**不要随意更换**——换了之后之前保存的 Key 会无法解密，需要重新填写一遍。
+
 ---
 
 ## 二、本地开发
@@ -146,12 +178,16 @@ Worker（独立进程，SKIP LOCKED 抢任务）
 | 目录 | 说明 |
 | --- | --- |
 | `src/app` | 页面与 API 路由 |
-| `src/app/(app)` | 登录后的主界面（工作台 / 作品库 / 提示词 / 用户管理） |
+| `src/app/(app)` | 登录后的主界面（工作台 / 作品库 / 提示词 / 模型设置 / 用户管理） |
 | `src/components/studio` | 生成表单与上传组件 |
 | `src/lib/minimax.ts` | MiniMax API 适配层（视频、图片、下载、错误码） |
+| `src/lib/providers.ts` | 供应商目录 + Key 运行时读取（DB 优先，env 回退） |
+| `src/lib/secrets.ts` | Key 加解密（AES-256-GCM）与掩码 |
 | `src/lib/models.ts` | 模型目录，加新模型改这里 |
 | `src/worker` | 异步任务 Worker |
 | `src/lib/schema.sql` | 表结构（幂等，启动自动执行） |
+| `scripts/e2e-smoke.mjs` | 端到端冒烟测试（20 项） |
+| `scripts/provider-e2e.mjs` | 模型设置页测试（12 项） |
 
 ### 加一个新模型
 
@@ -172,7 +208,10 @@ Worker（独立进程，SKIP LOCKED 抢任务）
 | `POST /api/assets/:id/share` | 生成分享链接 |
 | `POST /api/uploads` | 上传参考图 |
 | `GET /api/media/*` | 读取媒体文件（支持 Range） |
-| `GET /api/health` | 健康检查（DB / Worker / Key） |
+| `GET /api/health` | 健康检查（DB / Worker / 各供应商配置） |
+| `GET /api/admin/providers` | 供应商列表（Key 只返回掩码） |
+| `PUT /api/admin/providers/:id` | 保存 Key / Base URL / 启用状态 |
+| `POST /api/admin/providers/:id/test` | 连通性测试（不消耗额度） |
 
 ---
 
@@ -180,9 +219,18 @@ Worker（独立进程，SKIP LOCKED 抢任务）
 
 **任务一直「排队中」**
 Worker 没起来。`docker compose logs worker` 看日志；本地开发时确认 `pnpm worker` 在跑。
+（另：如果 MiniMax 已经在生成但界面长期不动，检查 worker 日志里有没有 `retry in ...` 的循环。）
 
-**提交时报「还没有配置 MINIMAX_API_KEY」**
-改 `.env` 后必须 `docker compose up -d`（或 `docker compose restart app worker`）才会生效。
+**提示「还没有配置 API Key」/ 生成报 1004**
+到「模型设置」页面填写 Key 并点「测试连接」确认有效。保存即时生效，不需要重启。
+如果 Key 是刚在 `.env` 里改的，则需要 `docker compose up -d` 才会被读入。
+
+**「账户余额不足」（错误码 1008）**
+MiniMax 账户需要充值：<https://platform.minimax.cn/user-center/finance/recharge>。
+充值后不用重启，对失败作品点「重试」即可。
+
+**换了 `APP_SECRET` 之后，已保存的 Key 全部失效**
+`APP_SECRET` 是解密凭据，更换后旧密文无法解开。重新在「模型设置」里填一遍 Key 即可。
 
 **同事打不开页面**
 - 确认同一 WiFi / 内网，且没有开访客网络隔离

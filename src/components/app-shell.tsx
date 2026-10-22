@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import {
   Clapperboard,
   Images,
+  KeyRound,
   LayoutGrid,
   LogOut,
   Menu,
@@ -64,7 +65,8 @@ export default function AppShell({
 
   const nav = [...NAV];
   if (user.role === "admin") {
-    nav.push({ href: "/admin", label: "用户管理", icon: ShieldCheck, exact: false });
+    nav.push({ href: "/admin/providers", label: "模型设置", icon: KeyRound, exact: false });
+    nav.push({ href: "/admin", label: "用户管理", icon: ShieldCheck, exact: true });
   }
 
   const sidebar = (
