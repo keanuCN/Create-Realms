@@ -27,7 +27,7 @@ import {
   useToast,
 } from "@/components/ui";
 import { api } from "@/lib/client";
-import { MODELS, getModel, modelsFor, providerLabel, providersForModality } from "@/lib/models";
+import { MODELS, durationOptions, getModel, modelsFor, providerLabel, providersForModality } from "@/lib/models";
 import { providerColor } from "@/lib/provider-colors";
 import type { AssetWithUser, PromptTemplate } from "@/lib/types";
 
@@ -266,6 +266,7 @@ export default function Studio({ displayName }: { displayName: string }) {
   const charLimit = model.maxPrompt;
   const withFrames = Boolean(firstFrame || lastFrame);
   const ratios = model.ratios ?? ["16:9"];
+  const durationChoices = durationOptions(model);
 
   /** 操作条：宽屏钉在表单底部，窄屏浮动在视口底部，保证提交按钮永远可见 */
   const actionBar = (
@@ -585,11 +586,17 @@ export default function Studio({ displayName }: { displayName: string }) {
 
                 <Field label="时长" hint="拖动选择">
                   <RangeSlider
-                    min={model.durationRange?.min ?? 5}
-                    max={model.durationRange?.max ?? 10}
-                    step={model.durationRange?.step ?? 1}
-                    value={duration}
-                    onChange={setDuration}
+                    min={0}
+                    max={Math.max(0, durationChoices.length - 1)}
+                    step={1}
+                    value={Math.max(0, durationChoices.indexOf(duration))}
+                    onChange={(index) => {
+                      const next = durationChoices[index];
+                      if (next != null) setDuration(next);
+                    }}
+                    minLabel={`${durationChoices[0] ?? 5}s`}
+                    maxLabel={`${durationChoices[durationChoices.length - 1] ?? 5}s`}
+                    valueLabel={`${duration}s`}
                   />
                 </Field>
 

@@ -230,6 +230,9 @@ export function RangeSlider({
   value,
   onChange,
   suffix = "s",
+  minLabel,
+  maxLabel,
+  valueLabel,
   className,
 }: {
   min: number;
@@ -238,6 +241,10 @@ export function RangeSlider({
   value: number;
   onChange: (value: number) => void;
   suffix?: string;
+  /** 可选：当滑块表示「第几档」而不是数值本身时，自定义显示文案 */
+  minLabel?: string;
+  maxLabel?: string;
+  valueLabel?: string;
   className?: string;
 }) {
   const safeMin = Math.min(min, max);
@@ -276,18 +283,11 @@ export function RangeSlider({
         />
       </div>
       <div className="flex items-center justify-between text-[10px] text-slate-500">
-        <span>
-          {safeMin}
-          {suffix}
-        </span>
+        <span>{minLabel ?? `${safeMin}${suffix}`}</span>
         <span className="rounded-md border border-[#7c6cff]/30 bg-[#7c6cff]/10 px-1.5 py-0.5 font-medium text-[#bdb3ff]">
-          {value}
-          {suffix}
+          {valueLabel ?? `${value}${suffix}`}
         </span>
-        <span>
-          {safeMax}
-          {suffix}
-        </span>
+        <span>{maxLabel ?? `${safeMax}${suffix}`}</span>
       </div>
     </div>
   );

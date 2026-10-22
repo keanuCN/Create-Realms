@@ -17,6 +17,8 @@ export interface ModelSpec {
   defaultResolution?: string;
   /** 时长区间（视频用滑块选择） */
   durationRange?: DurationRange;
+  /** 可选时长不是等差数列时直接列出（如 5/8/10） */
+  durationList?: number[];
   defaultDuration?: number;
   ratios?: string[];
   defaultRatio?: string;
@@ -283,7 +285,7 @@ export const MODELS: ModelSpec[] = [
     tagline: "性价比 · 5/8/10 秒",
     resolutions: ["1080p", "720p", "540p"],
     defaultResolution: "720p",
-    durationRange: { min: 5, max: 10, step: 5 },
+    durationList: [5, 8, 10],
     defaultDuration: 5,
     ratios: STD_RATIOS,
     defaultRatio: "16:9",
@@ -423,15 +425,18 @@ export function defaultModel(modality: Modality, provider?: string): ModelSpec {
 
 /** 时长是否在该模型允许范围内 */
 export function durationAllowed(model: ModelSpec, duration: number): boolean {
+  if (!Number.isInteger(duration)) return false;
+  if (model.durationList?.length) return model.durationList.includes(duration);
   const range = model.durationRange;
   if (!range) return false;
-  if (!Number.isInteger(duration)) return false;
   if (duration < range.min || duration > range.max) return false;
   const step = range.step ?? 1;
   return (duration - range.min) % step === 0;
 }
 
+/** 该模型可选的全部时长，滑块按这个列表走 */
 export function durationOptions(model: ModelSpec): number[] {
+  if (model.durationList?.length) return [...model.durationList];
   const range = model.durationRange;
   if (!range) return [];
   const step = range.step ?? 1;
