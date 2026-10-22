@@ -2,9 +2,9 @@
 
 团队内部使用的 AI 图片 / 视频生成工作台。部署在一台内网机器上，同事用浏览器访问，作品自动归档、可收藏、可分享、提示词可复用。
 
-- **视频**：MiniMax H3 Max（极速）、MiniMax H3（2K 高质量）；支持文生视频、图生视频（首帧 / 首尾帧）
-- **图片**：MiniMax image-01，支持文生图、多张批量、多种比例
-- **模型设置**：各家 API Key 可视化填写（加密入库、界面只显示掩码、免重启生效）
+- **视频**：MiniMax H3 Max / H3、即梦 Seedance 2.5 / 2.0、可灵 3.0 / 2.6、PixVerse V6 Max、Vidu Q3 Pro、通义万相 2.7 / HappyHorse 1.1；全部支持文生视频与图生视频（首帧 / 首尾帧按各家能力）
+- **图片**：MiniMax image-01、豆包 Seedream 5.0、通义万相 2.6，支持多张批量与多种比例
+- **模型设置**：各家 API Key / 凭据可视化填写（加密入库、界面只显示掩码、免重启生效、免费连通性测试）
 - **账号**：管理员开号，登录使用；不限制用量
 - **作品库**：历史、搜索、收藏、下载、公开分享链接
 - **提示词库**：个人 / 共享大厅，一键复用
@@ -112,14 +112,21 @@ docker compose up -d --build
 
 登录管理员账号 → 左侧「模型设置」。这里可以可视化填写多家供应商的 API Key，**保存后立即生效，不需要改文件、不需要重启容器**。
 
-| 供应商 | 状态 | 能生成什么 |
-| --- | --- | --- |
-| MiniMax 海螺 | ✅ 已接入 | 视频（H3 / H3 Max）+ 图片（image-01） |
-| 即梦 / 豆包（火山方舟） | 待接入 | 视频（Seedance）+ 图片（Seedream） |
-| 可灵 AI | 待接入 | 视频 |
-| OpenAI | 待接入 | 图片（gpt-image）+ 视频（Sora） |
-| Google AI | 待接入 | 图片（Imagen）+ 视频（Veo） |
-| Runway | 待接入 | 视频 |
+| 供应商 | 状态 | 能生成什么 | 鉴权方式 |
+| --- | --- | --- | --- |
+| MiniMax 海螺 | ✅ 已接入 | 视频（H3 / H3 Max）+ 图片（image-01） | `Bearer` API Key |
+| 即梦 / 豆包（火山方舟） | ✅ 已接入 | 视频（Seedance 2.5 / 2.0）+ 图片（Seedream 5.0） | `Bearer` API Key |
+| 可灵 Kling | ✅ 已接入 | 视频（3.0 / 2.6 / 3.0 Turbo） | `Bearer` API Key |
+| 爱诗科技 PixVerse | ✅ 已接入 | 视频（V6 Max / V6 / V5.6） | `API-KEY` 头 |
+| 生数科技 Vidu | ✅ 已接入 | 视频（Q3 Pro / Q3 Turbo） | `Token` 前缀 |
+| 通义万相 / HappyHorse | ✅ 已接入 | 视频（万相 2.7 / HappyHorse 1.1）+ 图片（万相 2.6） | `Bearer` API Key |
+| OpenAI / Google / Runway | 待接入 | — | 可先存 Key 备用 |
+
+各家 Base URL 默认值已填好（国内站点）。如果账号在海外站点，把 Base URL 改成对应域名即可（例如 MiniMax 国际站 `https://api.minimax.io`）。
+
+**图生视频说明**：参考图默认以内联 base64 方式提交，因此内网部署（没有公网图片地址）也能用。
+唯一例外是 PixVerse——它要求先调用官方上传接口换取 `img_id`，程序已自动处理。
+如果某家反馈「无法下载参考图」，通常说明该供应商只接受公网可访问的图片 URL，这时需要额外配置公网图床。
 
 页面上每家供应商都有：
 
@@ -180,20 +187,28 @@ Worker（独立进程，SKIP LOCKED 抢任务）
 | `src/app` | 页面与 API 路由 |
 | `src/app/(app)` | 登录后的主界面（工作台 / 作品库 / 提示词 / 模型设置 / 用户管理） |
 | `src/components/studio` | 生成表单与上传组件 |
-| `src/lib/minimax.ts` | MiniMax API 适配层（视频、图片、下载、错误码） |
-| `src/lib/providers.ts` | 供应商目录 + Key 运行时读取（DB 优先，env 回退） |
-| `src/lib/secrets.ts` | Key 加解密（AES-256-GCM）与掩码 |
-| `src/lib/models.ts` | 模型目录，加新模型改这里 |
-| `src/worker` | 异步任务 Worker |
+| `src/lib/adapters/` | 各供应商适配器（minimax / ark / kling / pixverse / vidu / dashscope） |
+| `src/lib/adapters/index.ts` | 适配器注册表，按 `provider` 分发 |
+| `src/lib/providers.ts` | 供应商目录 + 凭据运行时读取（DB 优先，env 回退） |
+| `src/lib/secrets.ts` | 凭据加解密（AES-256-GCM）与掩码 |
+| `src/lib/models.ts` | 模型目录（供应商 × 模型），加新模型改这里 |
+| `src/worker` | 异步任务 Worker（按 provider 分发提交与轮询） |
 | `src/lib/schema.sql` | 表结构（幂等，启动自动执行） |
 | `scripts/e2e-smoke.mjs` | 端到端冒烟测试（20 项） |
-| `scripts/provider-e2e.mjs` | 模型设置页测试（12 项） |
+| `scripts/provider-e2e.mjs` | 模型设置页测试（17 项） |
 
-### 加一个新模型
+### 加一个新模型 / 新供应商
 
-1. 在 `src/lib/models.ts` 里加一条 `ModelSpec`（`provider` 标记供应商）。
-2. 在 `src/lib/minimax.ts`（或其他 provider 文件）实现提交 / 查询。
-3. Worker 的 `submitJob` 按 `job.provider` 分发。
+**加模型**（供应商已接入）：在 `src/lib/models.ts` 里加一条 `ModelSpec` 即可，工作台会自动出现该模型。
+
+**加供应商**：
+
+1. 在 `src/lib/adapters/` 新建适配器，实现 `ProviderAdapter`（`submitVideo` + `pollVideo`，图片则实现 `submitImage` + `pollImage`，以及免费的 `verify`）。
+2. 在 `src/lib/adapters/index.ts` 注册。
+3. 在 `src/lib/providers.ts` 的 `PROVIDERS` 里加供应商目录（含 `credentialFields`，多凭据供应商可声明多个字段）。
+4. 在 `src/lib/models.ts` 里加该供应商的模型。
+
+「模型设置」页面会自动出现新供应商，凭据加密存储与掩码展示都由框架处理。
 
 ---
 

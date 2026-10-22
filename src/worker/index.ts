@@ -1,14 +1,9 @@
+import { getAdapter, ProviderError } from "../lib/adapters";
+import type { AdapterContext } from "../lib/adapters/types";
 import { sql, jsonb } from "../lib/db";
 import { env } from "../lib/env";
 import { friendlyError } from "../lib/errors";
-import {
-  createVideoTask,
-  downloadRemote,
-  generateImages,
-  MinimaxError,
-  queryVideoTask,
-  type VideoRequest,
-} from "../lib/minimax";
+import { getAdapterContext } from "../lib/providers";
 import { ensureMediaDir, extFromMime, readMedia, saveMedia } from "../lib/storage";
 import type { AssetKind, AssetStatus } from "../lib/types";
 
@@ -27,6 +22,20 @@ interface JobRow {
 }
 
 const MAX_ATTEMPTS = 6;
+
+/** 错误码 → 是否值得重试 */
+const RETRYABLE = new Set([
+  "1002", // MiniMax 限流
+  "429",
+  "500",
+  "529",
+  "overloaded",
+  "SystemThrottling",
+  "TooManyRequests",
+  "QuotaExceeded",
+  "RequestTimeout",
+  "InternalServiceFailure",
+]);
 
 let running = true;
 
@@ -90,53 +99,25 @@ async function readFrame(
   return { data: await readMedia(storageKey), mime };
 }
 
-async function submitJob(job: JobRow) {
-  if (job.kind === "video") {
-    const req: VideoRequest = {
-      model: job.model,
-      prompt: job.prompt,
-      resolution: paramString(job.params, "resolution") || "768P",
-      duration: paramNumber(job.params, "duration") || 5,
-      ratio: paramString(job.params, "ratio"),
-      promptExpansion:
-        (paramString(job.params, "promptExpansion") as
-          | "disabled"
-          | "balanced"
-          | "quality"
-          | undefined) ?? "balanced",
-      firstFrame: await readFrame(job.params, "firstFrame"),
-      lastFrame: await readFrame(job.params, "lastFrame"),
-    };
-    const taskId = await createVideoTask(req);
-    await sql`
-      UPDATE assets SET provider_task_id = ${taskId}, next_run_at = now() + interval '2 seconds', updated_at = now()
-      WHERE id = ${job.id}
-    `;
-    log(`submitted ${job.kind} ${job.id} -> ${taskId}`);
-    return;
+function requireAdapter(job: JobRow) {
+  const adapter = getAdapter(job.provider);
+  if (!adapter) {
+    throw new ProviderError(`供应商「${job.provider}」的适配器未接入`, "no_adapter", 500);
   }
+  return adapter;
+}
 
-  // Image generation is synchronous; run it inside the job.
-  const result = await generateImages({
-    model: job.model,
-    prompt: job.prompt,
-    aspectRatio: paramString(job.params, "ratio") || "1:1",
-    n: paramNumber(job.params, "n") || 1,
-    seed: paramNumber(job.params, "seed"),
-    promptOptimizer: job.params.promptOptimizer !== false,
-  });
-
-  if (!result.urls.length) {
-    throw new MinimaxError("图片生成失败：没有返回结果", "500", 500);
-  }
-
-  for (let index = 0; index < result.urls.length; index += 1) {
-    const url = result.urls[index];
-    const { data, contentType } = await downloadRemote(url);
-    const ext = extFromMime(contentType, "png");
+/** 下载全部图片并落库：第一张写回当前作业，其余作为兄弟作品入库。 */
+async function finalizeImages(job: JobRow, urls: string[], ratio: string) {
+  let succeeded = 0;
+  for (let index = 0; index < urls.length; index += 1) {
+    const url = urls[index];
+    const { data, contentType } = await downloadRemoteFile(url);
+    const ext = extFromMime(contentType, "jpg");
     const targetId = index === 0 ? job.id : null;
     const key = storageKeyFor(targetId ?? `${job.id}-${index + 1}`, ext);
     await saveMedia(key, data);
+    succeeded += 1;
 
     if (index === 0) {
       await sql`
@@ -144,7 +125,7 @@ async function submitJob(job: JobRow) {
           status = 'succeeded',
           storage_key = ${key},
           remote_url = ${url},
-          aspect_ratio = ${paramString(job.params, "ratio") || "1:1"},
+          aspect_ratio = ${ratio},
           completed_at = now(),
           updated_at = now(),
           error_code = NULL,
@@ -159,27 +140,114 @@ async function submitJob(job: JobRow) {
         ) VALUES (
           ${job.user_id}, 'image', ${job.provider}, ${job.model}, 'succeeded',
           ${job.prompt}, ${jsonb(job.params)},
-          ${key}, ${url}, ${paramString(job.params, "ratio") || "1:1"}, now()
+          ${key}, ${url}, ${ratio}, now()
         )
       `;
     }
   }
-  log(`image ${job.id} generated ${result.urls.length} file(s)`);
+  log(`image ${job.id} generated ${succeeded} file(s) via ${job.provider}`);
+}
+
+async function downloadRemoteFile(url: string) {
+  const { downloadRemote } = await import("../lib/adapters/http");
+  return downloadRemote(url);
+}
+
+async function submitJob(job: JobRow) {
+  const adapter = requireAdapter(job);
+  const ctx: AdapterContext = await getAdapterContext(job.provider);
+
+  if (job.kind === "video") {
+    if (!adapter.submitVideo) {
+      throw new ProviderError(`${adapter.label} 暂不支持视频生成`, "unsupported", 500);
+    }
+    const { taskId } = await adapter.submitVideo(ctx, {
+      model: job.model,
+      prompt: job.prompt,
+      resolution: paramString(job.params, "resolution"),
+      duration: paramNumber(job.params, "duration"),
+      ratio: paramString(job.params, "ratio"),
+      seed: paramNumber(job.params, "seed"),
+      promptExpansion: paramString(job.params, "promptExpansion") as
+        | "disabled"
+        | "balanced"
+        | "quality"
+        | undefined,
+      firstFrame: await readFrame(job.params, "firstFrame"),
+      lastFrame: await readFrame(job.params, "lastFrame"),
+    });
+
+    await sql`
+      UPDATE assets SET provider_task_id = ${taskId}, next_run_at = now() + interval '3 seconds', updated_at = now()
+      WHERE id = ${job.id}
+    `;
+    log(`submitted video ${job.id} via ${job.provider} -> ${taskId}`);
+    return;
+  }
+
+  if (!adapter.submitImage) {
+    throw new ProviderError(`${adapter.label} 暂不支持图片生成`, "unsupported", 500);
+  }
+
+  const result = await adapter.submitImage(ctx, {
+    model: job.model,
+    prompt: job.prompt,
+    ratio: paramString(job.params, "ratio"),
+    resolution: paramString(job.params, "resolution"),
+    n: paramNumber(job.params, "n"),
+    seed: paramNumber(job.params, "seed"),
+    promptOptimizer: job.params.promptOptimizer !== false,
+    referenceImage: await readFrame(job.params, "firstFrame"),
+  });
+
+  const ratio = paramString(job.params, "ratio") || "1:1";
+
+  if (result.urls?.length) {
+    await finalizeImages(job, result.urls, ratio);
+    return;
+  }
+
+  if (result.taskId) {
+    await sql`
+      UPDATE assets SET provider_task_id = ${result.taskId}, next_run_at = now() + interval '4 seconds', updated_at = now()
+      WHERE id = ${job.id}
+    `;
+    log(`submitted image ${job.id} via ${job.provider} -> ${result.taskId}`);
+    return;
+  }
+
+  throw new ProviderError("图片生成没有返回结果", "empty", 200);
 }
 
 async function pollJob(job: JobRow) {
+  const adapter = requireAdapter(job);
+  const ctx = await getAdapterContext(job.provider);
   const taskId = job.provider_task_id!;
-  const state = await queryVideoTask(taskId);
+
+  const state =
+    job.kind === "video"
+      ? await (adapter.pollVideo?.(ctx, taskId) ??
+          Promise.reject(new ProviderError("该供应商不支持视频查询", "unsupported", 500)))
+      : await (adapter.pollImage?.(ctx, taskId) ??
+          Promise.reject(new ProviderError("该供应商不支持图片查询", "unsupported", 500)));
 
   if (state.status === "queued" || state.status === "running") {
     await sql`
-      UPDATE assets SET locked_at = now(), next_run_at = now() + interval '3 seconds', updated_at = now()
+      UPDATE assets SET locked_at = now(), next_run_at = now() + interval '4 seconds', updated_at = now()
       WHERE id = ${job.id}
     `;
     return;
   }
 
-  if (state.status === "failed" || state.status === "cancelled") {
+  if (state.status === "cancelled") {
+    await sql`
+      UPDATE assets SET status = 'cancelled', updated_at = now(), completed_at = now()
+      WHERE id = ${job.id}
+    `;
+    return;
+  }
+
+  if (state.status === "failed") {
     const code = state.error?.code ?? "failed";
     await sql`
       UPDATE assets SET
@@ -190,16 +258,24 @@ async function pollJob(job: JobRow) {
         updated_at = now()
       WHERE id = ${job.id}
     `;
-    log(`video ${job.id} failed: ${code} ${state.error?.message ?? ""}`);
+    log(`${job.kind} ${job.id} failed via ${job.provider}: ${code} ${state.error?.message ?? ""}`);
+    return;
+  }
+
+  if (job.kind === "image") {
+    const urls = state.urls?.length ? state.urls : state.url ? [state.url] : [];
+    if (!urls.length) {
+      throw new ProviderError("任务已完成但没有返回图片地址", "no_output", 500);
+    }
+    await finalizeImages(job, urls, paramString(job.params, "ratio") || "1:1");
     return;
   }
 
   if (!state.url) {
-    // Permanent: task reports success but exposes no downloadable URL.
-    throw new MinimaxError("任务已完成但没有返回视频地址", "no_output", 500);
+    throw new ProviderError("任务已完成但没有返回视频地址", "no_output", 500);
   }
 
-  const { data, contentType } = await downloadRemote(state.url);
+  const { data, contentType } = await downloadRemoteFile(state.url);
   const key = storageKeyFor(job.id, extFromMime(contentType, "mp4"));
   await saveMedia(key, data);
 
@@ -218,7 +294,7 @@ async function pollJob(job: JobRow) {
       error_message = NULL
     WHERE id = ${job.id}
   `;
-  log(`video ${job.id} succeeded (${Math.round(data.length / 1024)} KB)`);
+  log(`video ${job.id} succeeded via ${job.provider} (${Math.round(data.length / 1024)} KB)`);
 }
 
 async function processJob(job: JobRow) {
@@ -230,14 +306,11 @@ async function processJob(job: JobRow) {
 }
 
 async function failJob(job: JobRow, error: unknown) {
-  const minimaxError = error instanceof MinimaxError ? error : null;
-  const code = minimaxError?.code ?? "error";
-  const retryable = ["1002", "429", "500", "529", "overloaded"].includes(code);
-
-  // Count every failure (submit or poll) so a stuck job eventually stops.
+  const providerError = error instanceof ProviderError ? error : null;
+  const code = providerError?.code ?? "error";
   const attempts = job.attempts + 1;
 
-  if (retryable && attempts < MAX_ATTEMPTS) {
+  if (RETRYABLE.has(code) && attempts < MAX_ATTEMPTS) {
     const delay = Math.min(60, 5 * attempts);
     await sql`
       UPDATE assets SET
@@ -246,7 +319,7 @@ async function failJob(job: JobRow, error: unknown) {
         locked_at = NULL,
         next_run_at = now() + ${`${delay} seconds`}::interval,
         error_code = ${code},
-        error_message = ${friendlyError(code, minimaxError?.message)},
+        error_message = ${friendlyError(code, providerError?.message)},
         updated_at = now()
       WHERE id = ${job.id}
     `;
@@ -258,7 +331,10 @@ async function failJob(job: JobRow, error: unknown) {
     UPDATE assets SET
       status = 'failed',
       error_code = ${code},
-      error_message = ${friendlyError(code, minimaxError?.message ?? (error instanceof Error ? error.message : null))},
+      error_message = ${friendlyError(
+        code,
+        providerError?.message ?? (error instanceof Error ? error.message : null),
+      )},
       completed_at = now(),
       updated_at = now()
     WHERE id = ${job.id}

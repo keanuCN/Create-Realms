@@ -45,34 +45,58 @@ function envKey() {
   }
 }
 
+function minimaxKeyOf(list) {
+  const item = list?.find((entry) => entry.id === "minimax");
+  return item?.credentials?.find((field) => field.key === "apiKey")?.masked ?? null;
+}
+
 async function main() {
   const login = await req("/api/auth/login", { method: "POST", body: ADMIN });
   check("admin login", login.res.status === 200);
 
   const list = await req("/api/admin/providers");
-  const minimax = list.json?.items?.find((item) => item.id === "minimax");
-  const catalog = list.json?.items?.length ?? 0;
-  check("provider list returned", list.res.status === 200 && catalog >= 4, `${catalog} providers`);
+  const items = list.json?.items ?? [];
+  check("provider list returned", list.res.status === 200 && items.length >= 8, `${items.length} providers`);
+
+  const expected = ["minimax", "volcengine-ark", "kling", "pixverse", "vidu", "dashscope"];
+  check(
+    "all requested providers present & ready",
+    expected.every((id) => items.find((entry) => entry.id === id)?.status === "ready"),
+    expected
+      .map((id) => `${id}:${items.find((entry) => entry.id === id)?.status ?? "missing"}`)
+      .join(" "),
+  );
+
+  const minimax = items.find((entry) => entry.id === "minimax");
+  const masked = minimaxKeyOf(items);
   check("minimax key seeded from env/db", Boolean(minimax?.configured), `source=${minimax?.source}`);
   check(
     "key is masked, never raw",
-    typeof minimax?.maskedKey === "string" &&
-      minimax.maskedKey.includes("•") &&
-      !minimax.maskedKey.includes(envKey().slice(10, 30)),
-    minimax?.maskedKey,
+    typeof masked === "string" && masked.includes("•") && !masked.includes(envKey().slice(10, 30)),
+    masked,
   );
-  check("no raw key field in payload", !/apiKey|api_key/.test(list.text.replace(/apiBase/g, "")));
+  check("no raw key field in payload", !list.text.includes(envKey().slice(0, 20)) && !/"apiKey":\s*"/.test(list.text));
 
   const test = await req("/api/admin/providers/minimax/test", { method: "POST" });
-  check("connectivity test passes", test.json?.ok === true, test.json?.message);
+  check("minimax connectivity test passes", test.json?.ok === true, test.json?.message);
+
+  const unconfigured = await req("/api/admin/providers/vidu/test", { method: "POST" });
+  check(
+    "unconfigured provider reports missing credential",
+    unconfigured.json?.ok === false && /缺少/.test(unconfigured.json?.message ?? ""),
+    unconfigured.json?.message,
+  );
 
   // Save a temporary bogus key, then restore the real one.
   const bogus = await req("/api/admin/providers/minimax", {
     method: "PUT",
-    body: { apiKey: "sk-cp-temporary-invalid-key-for-e2e" },
+    body: { credentials: { apiKey: "sk-cp-temporary-invalid-key-for-e2e" } },
   });
-  const bogusItem = bogus.json?.items?.find((item) => item.id === "minimax");
-  check("saving a new key updates the mask", bogus.res.status === 200 && bogusItem?.maskedKey !== minimax?.maskedKey);
+  check(
+    "saving a new credential updates the mask",
+    bogus.res.status === 200 && minimaxKeyOf(bogus.json?.items) !== masked,
+    minimaxKeyOf(bogus.json?.items),
+  );
 
   const bogusTest = await req("/api/admin/providers/minimax/test", { method: "POST" });
   check("bogus key fails the test", bogusTest.json?.ok === false, bogusTest.json?.message);
@@ -81,26 +105,54 @@ async function main() {
   if (real) {
     const restore = await req("/api/admin/providers/minimax", {
       method: "PUT",
-      body: { apiKey: real },
+      body: { credentials: { apiKey: real } },
     });
-    const restored = restore.json?.items?.find((item) => item.id === "minimax");
-    check("real key restored", restored?.maskedKey === minimax?.maskedKey, restored?.maskedKey);
+    check("real key restored", minimaxKeyOf(restore.json?.items) === masked, minimaxKeyOf(restore.json?.items));
     const retest = await req("/api/admin/providers/minimax/test", { method: "POST" });
     check("connectivity test passes again", retest.json?.ok === true, retest.json?.message);
   } else {
     check("real key restored", false, ".env 中未找到 MINIMAX_API_KEY");
   }
 
-  check("invalid base url rejected", (await req("/api/admin/providers/minimax", {
-    method: "PUT",
-    body: { apiBase: "not-a-url" },
-  })).res.status === 400);
+  check(
+    "invalid base url rejected",
+    (
+      await req("/api/admin/providers/minimax", {
+        method: "PUT",
+        body: { apiBase: "not-a-url" },
+      })
+    ).res.status === 400,
+  );
+
+  check(
+    "too-short credential rejected",
+    (
+      await req("/api/admin/providers/pixverse", {
+        method: "PUT",
+        body: { credentials: { apiKey: "ab" } },
+      })
+    ).res.status === 400,
+  );
 
   const enabled = await req("/api/admin/providers/minimax", {
     method: "PUT",
     body: { apiBase: minimax?.apiBase || "https://api.minimax.cn", enabled: true },
   });
   check("base url + enabled saved", enabled.res.status === 200);
+
+  // 成员权限校验：管理员建号 → 成员登录 → 访问管理接口应被拒绝
+  const memberName = "e2e_provider_member";
+  await req("/api/admin/users", {
+    method: "POST",
+    body: { username: memberName, displayName: "E2E 成员", password: "e2epass123" },
+  });
+  const memberLogin = await req("/api/auth/login", {
+    method: "POST",
+    body: { username: memberName, password: "e2epass123" },
+  });
+  check("member login", memberLogin.res.status === 200);
+  const forbidden = await req("/api/admin/providers");
+  check("admin-only endpoint blocked for member", forbidden.res.status === 403, `status=${forbidden.res.status}`);
 
   const failed = results.filter((item) => !item.ok);
   console.log(`\n${results.length - failed.length}/${results.length} passed`);

@@ -24,7 +24,12 @@ import {
   useToast,
 } from "@/components/ui";
 import { api } from "@/lib/client";
-import { MODELS, getModel, modelsByModality } from "@/lib/models";
+import {
+  getModel,
+  modelsFor,
+  providerLabel,
+  providersForModality,
+} from "@/lib/models";
 import type { AssetWithUser, PromptTemplate } from "@/lib/types";
 
 type Tab = "video" | "image";
@@ -32,6 +37,7 @@ type Tab = "video" | "image";
 export default function Studio({ displayName }: { displayName: string }) {
   const { toast } = useToast();
   const [tab, setTab] = useState<Tab>("video");
+  const [provider, setProvider] = useState("minimax");
   const [modelId, setModelId] = useState("MiniMax-H3-Max");
   const [prompt, setPrompt] = useState("");
   const [resolution, setResolution] = useState("768P");
@@ -51,9 +57,26 @@ export default function Studio({ displayName }: { displayName: string }) {
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [templates, setTemplates] = useState<PromptTemplate[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [providerReady, setProviderReady] = useState<Record<string, boolean>>({});
 
-  const model = getModel(modelId) ?? MODELS[0];
-  const videoModels = modelsByModality("video");
+  const model = getModel(modelId) ?? modelsFor(tab, provider)[0];
+  const modelOptions = modelsFor(tab, provider);
+  const providerOptions = providersForModality(tab);
+  const currentReady = providerReady[provider] !== false;
+
+  useEffect(() => {
+    api<{ providers: { id: string; configured: boolean; enabled: boolean; source: string }[] }>(
+      "/api/health",
+    )
+      .then((data) => {
+        const map: Record<string, boolean> = {};
+        for (const item of data.providers ?? []) {
+          map[item.id] = item.configured && item.enabled;
+        }
+        setProviderReady(map);
+      })
+      .catch(() => {});
+  }, [tab]);
 
   const loadRecent = useCallback(async () => {
     try {
@@ -82,16 +105,28 @@ export default function Studio({ displayName }: { displayName: string }) {
 
   function switchTab(next: Tab) {
     setTab(next);
-    if (next === "video") {
-      const first = modelsByModality("video")[0];
-      setModelId(first.id);
-      setResolution(first.defaultResolution ?? "768P");
-      setDuration(first.defaultDuration ?? 5);
-      setRatio(first.defaultRatio ?? "16:9");
-    } else {
-      setModelId("image-01");
-      setRatio("1:1");
-    }
+    const firstProvider = providersForModality(next)[0];
+    const firstModel = modelsFor(next, firstProvider)[0];
+    setProvider(firstProvider);
+    setModelId(firstModel.id);
+    if (firstModel.defaultResolution) setResolution(firstModel.defaultResolution);
+    if (firstModel.defaultDuration) setDuration(firstModel.defaultDuration);
+    if (firstModel.defaultRatio) setRatio(firstModel.defaultRatio);
+    setFirstFrame(null);
+    setLastFrame(null);
+    setCount(1);
+  }
+
+  function pickProvider(next: string) {
+    const first = modelsFor(tab, next)[0];
+    if (!first) return;
+    setProvider(next);
+    setModelId(first.id);
+    if (first.defaultResolution) setResolution(first.defaultResolution);
+    if (first.defaultDuration) setDuration(first.defaultDuration);
+    if (first.defaultRatio) setRatio(first.defaultRatio);
+    setFirstFrame(null);
+    setLastFrame(null);
   }
 
   function pickModel(id: string) {
@@ -101,6 +136,7 @@ export default function Studio({ displayName }: { displayName: string }) {
     if (spec.defaultResolution) setResolution(spec.defaultResolution);
     if (spec.defaultDuration) setDuration(spec.defaultDuration);
     if (spec.defaultRatio) setRatio(spec.defaultRatio);
+    if (!spec.supportsLastFrame) setLastFrame(null);
   }
 
   async function openTemplates() {
@@ -155,6 +191,7 @@ export default function Studio({ displayName }: { displayName: string }) {
               ratio,
               n: count,
               promptOptimizer: optimizer,
+              ...(model.resolutions?.length ? { resolution } : {}),
             };
 
       await api("/api/generate", {
@@ -235,43 +272,71 @@ export default function Studio({ displayName }: { displayName: string }) {
           </div>
 
           <div className="space-y-5">
-            {tab === "video" ? (
-              <div className="space-y-2">
-                <span className="text-[13px] font-medium text-slate-300">模型</span>
-                <div className="grid grid-cols-2 gap-2">
-                  {videoModels.map((item) => (
+            <div className="space-y-2">
+              <span className="text-[13px] font-medium text-slate-300">模型供应商</span>
+              <div className="flex flex-wrap gap-1.5">
+                {providerOptions.map((item) => {
+                  const ready = providerReady[item] !== false;
+                  const active = provider === item;
+                  return (
                     <button
-                      key={item.id}
-                      onClick={() => pickModel(item.id)}
+                      key={item}
+                      onClick={() => pickProvider(item)}
                       className={cn(
-                        "rounded-xl border p-3 text-left transition",
-                        modelId === item.id
-                          ? "border-[#7c6cff]/60 bg-[#7c6cff]/10"
-                          : "border-white/10 bg-black/20 hover:border-white/20",
+                        "flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[12px] transition",
+                        active
+                          ? "border-[#7c6cff]/60 bg-[#7c6cff]/12 text-white"
+                          : "border-white/10 bg-white/[0.03] text-slate-400 hover:border-white/20 hover:text-slate-200",
                       )}
                     >
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[13px] font-semibold text-white">
-                          {item.label}
-                        </span>
-                        {item.badge ? <Badge tone="brand">{item.badge}</Badge> : null}
-                      </div>
-                      <p className="mt-1 text-[11px] leading-4 text-slate-500">
-                        {item.tagline}
-                      </p>
+                      <span
+                        className={cn(
+                          "size-1.5 rounded-full",
+                          ready ? "bg-emerald-400" : "bg-slate-600",
+                        )}
+                      />
+                      {providerLabel(item)}
                     </button>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
-            ) : (
-              <div className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3.5 py-3">
-                <div>
-                  <p className="text-[13px] font-medium text-white">{model.label}</p>
-                  <p className="mt-0.5 text-[11px] text-slate-500">{model.tagline}</p>
-                </div>
-                <Badge tone="brand">MiniMax</Badge>
+            </div>
+
+            <div className="space-y-2">
+              <span className="text-[13px] font-medium text-slate-300">模型</span>
+              <div className="grid grid-cols-2 gap-2">
+                {modelOptions.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => pickModel(item.id)}
+                    className={cn(
+                      "rounded-xl border p-3 text-left transition",
+                      modelId === item.id
+                        ? "border-[#7c6cff]/60 bg-[#7c6cff]/10"
+                        : "border-white/10 bg-black/20 hover:border-white/20",
+                    )}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[13px] font-semibold text-white">
+                        {item.label}
+                      </span>
+                      {item.badge ? <Badge tone="brand">{item.badge}</Badge> : null}
+                    </div>
+                    <p className="mt-1 text-[11px] leading-4 text-slate-500">
+                      {item.tagline}
+                    </p>
+                  </button>
+                ))}
               </div>
-            )}
+              {model.note ? (
+                <p className="text-[11px] leading-5 text-slate-500">{model.note}</p>
+              ) : null}
+              {!currentReady ? (
+                <p className="rounded-lg border border-amber-500/25 bg-amber-500/[0.08] px-3 py-2 text-[11px] leading-5 text-amber-200">
+                  {providerLabel(provider)} 还没有配置凭据，请联系管理员到「模型设置」页面填写并测试连接。
+                </p>
+              ) : null}
+            </div>
 
             <Field
               label="提示词"
@@ -306,7 +371,7 @@ export default function Studio({ displayName }: { displayName: string }) {
                     label="尾帧（可选）"
                     value={lastFrame}
                     onChange={setLastFrame}
-                    disabled={!firstFrame}
+                    disabled={!firstFrame || !model.supportsLastFrame}
                   />
                 </div>
 
@@ -379,6 +444,22 @@ export default function Studio({ displayName }: { displayName: string }) {
               </>
             ) : (
               <>
+                {model.resolutions?.length ? (
+                  <Field label="尺寸">
+                    <div className="flex flex-wrap gap-2">
+                      {model.resolutions.map((item) => (
+                        <Chip
+                          key={item}
+                          active={resolution === item}
+                          onClick={() => setResolution(item)}
+                        >
+                          {item}
+                        </Chip>
+                      ))}
+                    </div>
+                  </Field>
+                ) : null}
+
                 <Field label="比例">
                   <div className="flex flex-wrap gap-2">
                     {ratios.map((item) => (
@@ -425,7 +506,7 @@ export default function Studio({ displayName }: { displayName: string }) {
               className="w-full"
               loading={submitting}
               onClick={submit}
-              disabled={!prompt.trim()}
+              disabled={!prompt.trim() || !currentReady}
             >
               <Sparkles className="size-4" />
               {tab === "video" ? `生成视频 · ${duration} 秒` : `生成图片 · ${count} 张`}

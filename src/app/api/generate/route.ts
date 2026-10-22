@@ -1,9 +1,8 @@
 import { z } from "zod";
 import { requireApiUser, fail, ok, handleApiError, ApiError } from "@/lib/http";
 import { createAsset } from "@/lib/assets";
-import { getModel } from "@/lib/models";
+import { getModel, providerLabel } from "@/lib/models";
 import { sql } from "@/lib/db";
-import { env } from "@/lib/env";
 import { isProviderReady } from "@/lib/providers";
 
 export const runtime = "nodejs";
@@ -36,12 +35,6 @@ async function resolveUpload(userId: string, id?: string) {
 export async function POST(req: Request) {
   try {
     const user = await requireApiUser();
-    if (!env.minimax.mock && !(await isProviderReady("minimax"))) {
-      throw new ApiError(
-        "还没有配置 MiniMax API Key，请让管理员到「模型设置」页面填写。",
-        503,
-      );
-    }
 
     const parsed = schema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) {
@@ -51,6 +44,13 @@ export async function POST(req: Request) {
     const model = getModel(input.model);
     if (!model) throw new ApiError("未知模型", 400);
     if (model.modality !== input.kind) throw new ApiError("模型与生成类型不匹配", 400);
+
+    if (!(await isProviderReady(model.provider))) {
+      throw new ApiError(
+        `「${providerLabel(model.provider)}」还没有配置好凭据，请让管理员到「模型设置」页面填写并测试连接。`,
+        503,
+      );
+    }
 
     const prompt = input.prompt.trim();
     if (prompt.length > model.maxPrompt) {
@@ -73,7 +73,10 @@ export async function POST(req: Request) {
 
       if (input.firstFrameUploadId || input.lastFrameUploadId) {
         if (!model.supportsFrames) {
-          throw new ApiError("该模型不支持首尾帧参考", 400);
+          throw new ApiError("该模型不支持参考图生视频", 400);
+        }
+        if (input.lastFrameUploadId && !model.supportsLastFrame) {
+          throw new ApiError("该模型不支持尾帧，请只上传首帧", 400);
         }
         const first = await resolveUpload(user.id, input.firstFrameUploadId);
         const last = await resolveUpload(user.id, input.lastFrameUploadId);
@@ -108,6 +111,13 @@ export async function POST(req: Request) {
       params.n = Math.min(input.n ?? 1, model.maxImages ?? 4);
       if (input.seed != null) params.seed = input.seed;
       params.promptOptimizer = input.promptOptimizer ?? true;
+      if (model.resolutions?.length) {
+        const resolution = input.resolution ?? model.defaultResolution;
+        if (resolution && !model.resolutions.includes(resolution)) {
+          throw new ApiError("不支持的图片尺寸", 400);
+        }
+        params.resolution = resolution;
+      }
     }
 
     const asset = await createAsset({

@@ -10,7 +10,9 @@ interface Ctx {
 }
 
 const schema = z.object({
-  // undefined = keep current key; "" = clear it; otherwise the new key.
+  /** 只提交改动过的凭据字段；空字符串表示清除该字段。 */
+  credentials: z.record(z.string(), z.string().max(4096)).optional(),
+  /** 兼容旧的单 Key 调用方式 */
   apiKey: z.string().max(4096).optional(),
   apiBase: z.string().trim().max(300).optional(),
   enabled: z.boolean().optional(),
@@ -22,15 +24,25 @@ export async function PUT(req: Request, ctx: Ctx) {
     if (user.role !== "admin") return fail("需要管理员权限", 403);
 
     const { provider } = await ctx.params;
-    if (!getProviderSpec(provider)) return fail("未知的模型供应商", 404);
+    const spec = getProviderSpec(provider);
+    if (!spec) return fail("未知的模型供应商", 404);
 
     const parsed = schema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return fail("参数错误", 400);
 
-    const apiKey = parsed.data.apiKey?.trim();
-    if (apiKey && !/^https?:\/\//.test(apiKey) && apiKey.length < 8) {
-      return fail("API Key 看起来太短了，请检查是否复制完整", 400);
+    const raw = parsed.data.credentials ?? {};
+    const credentials: Record<string, string> = {};
+    for (const field of spec.credentialFields) {
+      const value = raw[field.key] ?? (field.key === "apiKey" ? parsed.data.apiKey : undefined);
+      if (value === undefined) continue;
+      const trimmed = value.trim();
+      // 空白但非空字符串视为无效输入，避免误存
+      if (trimmed && trimmed.length < 4) {
+        return fail(`${field.label} 看起来太短了，请检查是否复制完整`, 400);
+      }
+      credentials[field.key] = trimmed;
     }
+
     const apiBase = parsed.data.apiBase?.trim();
     if (apiBase && !/^https?:\/\//.test(apiBase)) {
       return fail("Base URL 需要以 http:// 或 https:// 开头", 400);
@@ -39,7 +51,7 @@ export async function PUT(req: Request, ctx: Ctx) {
     await saveProviderConfig(
       provider,
       {
-        apiKey: parsed.data.apiKey === undefined ? undefined : apiKey ?? "",
+        credentials: Object.keys(credentials).length ? credentials : undefined,
         apiBase,
         enabled: parsed.data.enabled,
       },
