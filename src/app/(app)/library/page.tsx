@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Heart, Images, LayoutGrid, Search, Sparkles } from "lucide-react";
 import { AssetCard, AssetViewer } from "@/components/asset-card";
+import { PageHeader } from "@/components/page-header";
 import { Button, Chip, EmptyState, Input, cn, useToast } from "@/components/ui";
 import { api } from "@/lib/client";
 import type { AssetWithUser } from "@/lib/types";
@@ -90,20 +91,16 @@ export default function LibraryPage() {
 
   return (
     <div className="mx-auto max-w-[1440px]">
-      <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-xs font-medium tracking-wider text-[#a99cff]">LIBRARY</p>
-          <h1 className="mt-1 flex items-center gap-2 text-2xl font-semibold text-white">
-            作品库
-            <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-xs font-normal text-slate-400">
-              {total}
-            </span>
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            所有生成结果都会自动留档，支持收藏、下载和分享。
-          </p>
-        </div>
-      </header>
+      <PageHeader
+        eyebrow="LIBRARY"
+        title="作品库"
+        meta={
+          <span className="rounded-full border border-[#7c6cff]/30 bg-[#7c6cff]/10 px-2.5 py-1 text-xs font-normal text-[#bdb3ff]">
+            {total} 件
+          </span>
+        }
+        description="所有生成结果都会自动留档，支持收藏、下载和分享给同事。"
+      />
 
       <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-3 lg:flex-row lg:items-center">
         <div className="flex rounded-xl border border-white/10 bg-black/25 p-1">

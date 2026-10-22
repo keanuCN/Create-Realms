@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { KeyRound, Plus, ShieldCheck, UserX } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import {
   Badge,
   Button,
@@ -107,19 +108,17 @@ export default function AdminUsers({ me }: { me: User }) {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-xs font-medium tracking-wider text-[#a99cff]">ADMIN</p>
-          <h1 className="mt-1 text-2xl font-semibold text-white">用户管理</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            给同事开账号、重置密码、停用离职账号。当前共 {items.length} 个账号。
-          </p>
-        </div>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="size-4" />
-          新建账号
-        </Button>
-      </header>
+      <PageHeader
+        eyebrow="ADMIN · USERS"
+        title="用户管理"
+        description={`给同事开账号、重置密码、停用离职账号。当前共 ${items.length} 个账号。`}
+        actions={
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="size-4" />
+            新建账号
+          </Button>
+        }
+      />
 
       {loading ? (
         <div className="space-y-2">

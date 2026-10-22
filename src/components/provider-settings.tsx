@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Trash2,
 } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import { Badge, Button, Input, Switch, cn, useToast } from "@/components/ui";
 import { api } from "@/lib/client";
 
@@ -173,13 +174,11 @@ export default function ProviderSettings() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <header className="mb-5">
-        <p className="text-xs font-medium tracking-wider text-[#a99cff]">ADMIN</p>
-        <h1 className="mt-1 text-2xl font-semibold text-white">模型设置</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          在这里填写各家模型的 API Key，保存后立刻生效，不用改配置文件、也不用重启服务。
-        </p>
-      </header>
+      <PageHeader
+        eyebrow="ADMIN · PROVIDERS"
+        title="模型设置"
+        description="在这里填写各家模型的凭据，保存后立刻生效 —— 不用改配置文件，也不用重启服务。"
+      />
 
       <div className="mb-5 flex items-start gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] p-4">
         <ShieldCheck className="mt-0.5 size-4 shrink-0 text-emerald-300" />

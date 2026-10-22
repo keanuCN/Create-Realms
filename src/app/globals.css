@@ -28,9 +28,9 @@ body {
 
 body {
   background:
-    radial-gradient(1100px 560px at 12% -12%, rgba(124, 108, 255, 0.18), transparent 62%),
-    radial-gradient(900px 500px at 102% -4%, rgba(77, 226, 192, 0.1), transparent 58%),
-    radial-gradient(700px 700px at 50% 120%, rgba(124, 108, 255, 0.08), transparent 60%),
+    radial-gradient(1200px 620px at 10% -14%, rgba(124, 108, 255, 0.26), transparent 62%),
+    radial-gradient(1000px 560px at 104% -6%, rgba(77, 226, 192, 0.14), transparent 58%),
+    radial-gradient(800px 800px at 50% 122%, rgba(124, 108, 255, 0.12), transparent 60%),
     var(--bg);
   color: #e8ecf4;
   font-family: var(--font-sans);
@@ -46,10 +46,10 @@ body::before {
   z-index: -1;
   pointer-events: none;
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.022) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
   background-size: 56px 56px;
-  mask-image: radial-gradient(1100px 640px at 50% -8%, #000 15%, transparent 78%);
+  mask-image: radial-gradient(1300px 720px at 50% -8%, #000 18%, transparent 80%);
 }
 
 ::selection {
@@ -523,6 +523,65 @@ select {
 
   .no-scrollbar::-webkit-scrollbar {
     display: none;
+  }
+
+  /* 首屏横幅：渐变 + 网格 + 光斑，让首页一眼有记忆点 */
+  .hero-band {
+    position: relative;
+    overflow: hidden;
+    border-radius: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background:
+      radial-gradient(620px 240px at 10% -10%, rgba(124, 108, 255, 0.42), transparent 70%),
+      radial-gradient(520px 220px at 94% 18%, rgba(77, 226, 192, 0.24), transparent 72%),
+      linear-gradient(135deg, rgba(26, 32, 48, 0.96), rgba(12, 16, 25, 0.98));
+    box-shadow:
+      0 40px 80px -56px rgba(0, 0, 0, 1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+  .hero-band::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+    background-size: 32px 32px;
+    mask-image: radial-gradient(720px 320px at 18% 0%, #000 8%, transparent 78%);
+  }
+
+  .stat-tile {
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.02));
+    backdrop-filter: blur(6px);
+    transition:
+      transform 0.3s var(--ease-out),
+      border-color 0.3s var(--ease-out);
+  }
+  .stat-tile:hover {
+    transform: translateY(-2px);
+    border-color: rgba(124, 108, 255, 0.45);
+  }
+
+  .stat-value {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+
+  /* 默认就可见的渐变描边（hover 时增强） */
+  .ring-sheen {
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.07),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+
+  .provider-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    box-shadow: 0 0 10px -1px currentColor;
   }
 }
 

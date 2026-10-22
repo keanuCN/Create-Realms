@@ -26,15 +26,20 @@ import {
   useToast,
 } from "@/components/ui";
 import { api } from "@/lib/client";
-import {
-  getModel,
-  modelsFor,
-  providerLabel,
-  providersForModality,
-} from "@/lib/models";
+import { MODELS, getModel, modelsFor, providerLabel, providersForModality } from "@/lib/models";
+import { providerColor, providerGradient } from "@/lib/provider-colors";
 import type { AssetWithUser, PromptTemplate } from "@/lib/types";
 
 type Tab = "video" | "image";
+
+function StatTile({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="stat-tile min-w-[92px] px-4 py-3 text-center">
+      <p className="stat-value text-2xl font-semibold text-white">{value}</p>
+      <p className="mt-1 text-[11px] text-slate-400">{label}</p>
+    </div>
+  );
+}
 
 export default function Studio({ displayName }: { displayName: string }) {
   const { toast } = useToast();
@@ -60,6 +65,7 @@ export default function Studio({ displayName }: { displayName: string }) {
   const [templates, setTemplates] = useState<PromptTemplate[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
   const [providerReady, setProviderReady] = useState<Record<string, boolean>>({});
+  const [stats, setStats] = useState({ assets: 0, providers: 0 });
 
   const model = getModel(modelId) ?? modelsFor(tab, provider)[0];
   const modelOptions = modelsFor(tab, provider);
@@ -76,9 +82,19 @@ export default function Studio({ displayName }: { displayName: string }) {
           map[item.id] = item.configured && item.enabled;
         }
         setProviderReady(map);
+        setStats((prev) => ({
+          ...prev,
+          providers: Object.values(map).filter(Boolean).length,
+        }));
       })
       .catch(() => {});
   }, [tab]);
+
+  useEffect(() => {
+    api<{ total: number }>("/api/assets?limit=1")
+      .then((data) => setStats((prev) => ({ ...prev, assets: data.total ?? 0 })))
+      .catch(() => {});
+  }, []);
 
   const loadRecent = useCallback(async () => {
     try {
@@ -219,30 +235,41 @@ export default function Studio({ displayName }: { displayName: string }) {
 
   return (
     <div className="mx-auto max-w-[1440px]">
-      <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-xs font-medium tracking-wider text-[#a99cff]">WORKSPACE</p>
-          <h1 className="mt-1 text-2xl font-semibold text-white">
-            嗨，{displayName}，<span className="gradient-text">想做点什么？</span>
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            选一个模型，写下画面描述，剩下的交给它。
-          </p>
+      <div className="hero-band animate-fade-up mb-6 p-6 sm:p-7">
+        <div className="relative flex flex-wrap items-end justify-between gap-6">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#bdb3ff]">
+              WORKSPACE
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white">
+              嗨，{displayName}，<span className="gradient-text">想做点什么？</span>
+            </h1>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-slate-400">
+              选一个模型供应商，写下画面描述，剩下的交给它 ——
+              视频与图片、多平台模型都在同一个入口。
+            </p>
+            <div className="mt-5 flex flex-wrap items-center gap-2">
+              <Button variant="secondary" size="sm" onClick={openTemplates}>
+                <BookOpen className="size-3.5" />
+                提示词模板
+              </Button>
+              <Link
+                href="/library"
+                className="lift inline-flex h-8 items-center gap-1 rounded-lg border border-white/12 bg-white/[0.06] px-3 text-[13px] text-slate-200 backdrop-blur transition hover:border-[#7c6cff]/40 hover:text-white"
+              >
+                作品库
+                <ChevronRight className="size-3.5" />
+              </Link>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <StatTile label="我的作品" value={stats.assets} />
+            <StatTile label="在用供应商" value={stats.providers} />
+            <StatTile label="可用模型" value={MODELS.length} />
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="secondary" size="sm" onClick={openTemplates}>
-            <BookOpen className="size-3.5" />
-            提示词模板
-          </Button>
-          <Link
-            href="/library"
-            className="inline-flex h-8 items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-3 text-[13px] text-slate-300 transition hover:bg-white/[0.08]"
-          >
-            作品库
-            <ChevronRight className="size-3.5" />
-          </Link>
-        </div>
-      </header>
+      </div>
 
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,430px)_minmax(0,1fr)]">
         <section className="panel p-5 xl:sticky xl:top-6">
@@ -280,22 +307,33 @@ export default function Studio({ displayName }: { displayName: string }) {
                 {providerOptions.map((item) => {
                   const ready = providerReady[item] !== false;
                   const active = provider === item;
+                  const color = providerColor(item);
                   return (
                     <button
                       key={item}
                       onClick={() => pickProvider(item)}
                       className={cn(
-                        "flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[12px] transition",
+                        "lift flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[12px]",
                         active
-                          ? "border-[#7c6cff]/60 bg-[#7c6cff]/12 text-white"
-                          : "border-white/10 bg-white/[0.03] text-slate-400 hover:border-white/20 hover:text-slate-200",
+                          ? "text-white"
+                          : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-slate-200",
                       )}
+                      style={
+                        active
+                          ? {
+                              borderColor: color.from,
+                              background: color.soft,
+                              boxShadow: `0 8px 22px -12px ${color.from}`,
+                            }
+                          : undefined
+                      }
                     >
                       <span
-                        className={cn(
-                          "size-1.5 rounded-full",
-                          ready ? "bg-emerald-400" : "bg-slate-600",
-                        )}
+                        className="provider-dot"
+                        style={{
+                          background: ready ? color.from : "#475569",
+                          color: ready ? color.from : "transparent",
+                        }}
                       />
                       {providerLabel(item)}
                     </button>
@@ -307,28 +345,46 @@ export default function Studio({ displayName }: { displayName: string }) {
             <div className="space-y-2">
               <span className="text-[13px] font-medium text-slate-300">模型</span>
               <div className="grid grid-cols-2 gap-2">
-                {modelOptions.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => pickModel(item.id)}
-                    className={cn(
-                      "rounded-xl border p-3 text-left transition",
-                      modelId === item.id
-                        ? "border-[#7c6cff]/60 bg-[#7c6cff]/10"
-                        : "border-white/10 bg-black/20 hover:border-white/20",
-                    )}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[13px] font-semibold text-white">
-                        {item.label}
-                      </span>
-                      {item.badge ? <Badge tone="brand">{item.badge}</Badge> : null}
-                    </div>
-                    <p className="mt-1 text-[11px] leading-4 text-slate-500">
-                      {item.tagline}
-                    </p>
-                  </button>
-                ))}
+                {modelOptions.map((item) => {
+                  const active = modelId === item.id;
+                  const color = providerColor(item.provider);
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => pickModel(item.id)}
+                      className={cn(
+                        "lift relative overflow-hidden rounded-xl border p-3 pl-4 text-left",
+                        active
+                          ? "text-white"
+                          : "border-white/10 bg-black/20 hover:border-white/20",
+                      )}
+                      style={
+                        active
+                          ? {
+                              borderColor: color.from,
+                              background: color.soft,
+                              boxShadow: `0 10px 26px -16px ${color.from}`,
+                            }
+                          : undefined
+                      }
+                    >
+                      <span
+                        aria-hidden
+                        className="absolute inset-y-0 left-0 w-[3px]"
+                        style={{ background: providerGradient(item.provider, "180deg") }}
+                      />
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[13px] font-semibold text-white">
+                          {item.label}
+                        </span>
+                        {item.badge ? <Badge tone="brand">{item.badge}</Badge> : null}
+                      </div>
+                      <p className="mt-1 text-[11px] leading-4 text-slate-400">
+                        {item.tagline}
+                      </p>
+                    </button>
+                  );
+                })}
               </div>
               {model.note ? (
                 <p className="text-[11px] leading-5 text-slate-500">{model.note}</p>

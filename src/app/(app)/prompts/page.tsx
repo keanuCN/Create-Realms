@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { BookOpen, Copy, Pencil, Plus, Search, Trash2, Users } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import {
   Badge,
   Button,
@@ -141,19 +142,17 @@ export default function PromptsPage() {
 
   return (
     <div className="mx-auto max-w-[1440px]">
-      <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-xs font-medium tracking-wider text-[#a99cff]">PROMPTS</p>
-          <h1 className="mt-1 text-2xl font-semibold text-white">提示词库</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            把好用的提示词沉淀下来，同事之间一键复用。
-          </p>
-        </div>
-        <Button onClick={() => setDraft({ ...EMPTY_DRAFT })}>
-          <Plus className="size-4" />
-          新建提示词
-        </Button>
-      </header>
+      <PageHeader
+        eyebrow="PROMPTS"
+        title="提示词库"
+        description="把好用的提示词沉淀下来，勾选共享后同事就能一键复用。"
+        actions={
+          <Button onClick={() => setDraft({ ...EMPTY_DRAFT })}>
+            <Plus className="size-4" />
+            新建提示词
+          </Button>
+        }
+      />
 
       <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-3 sm:flex-row sm:items-center">
         <div className="flex rounded-xl border border-white/10 bg-black/25 p-1">
