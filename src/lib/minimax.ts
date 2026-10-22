@@ -105,6 +105,19 @@ export interface VideoTaskState {
   usage?: Record<string, unknown>;
 }
 
+interface RawVideoTask {
+  id: string;
+  status: VideoTaskState["status"];
+  content?: { url?: string; prompt?: string } | null;
+  error?: { code?: string; message?: string };
+  resolution?: string;
+  duration?: number;
+  ratio?: string;
+  usage?: Record<string, unknown>;
+  output?: { url?: string } | null;
+  video_url?: string;
+}
+
 const mockTasks = new Map<string, { createdAt: number; mode: string }>();
 
 export async function createVideoTask(req: VideoRequest): Promise<string> {
@@ -178,15 +191,30 @@ export async function queryVideoTask(taskId: string): Promise<VideoTaskState> {
     };
   }
 
-  const data = await apiFetch<{ task?: VideoTaskState }>(
+  const data = await apiFetch<{ task?: RawVideoTask }>(
     `/v2/query/video_generation/${encodeURIComponent(taskId)}`,
     { method: "GET" },
     30_000,
   );
-  if (!data?.task) {
+  const task = data?.task;
+  if (!task) {
     throw new MinimaxError("查询任务失败：接口未返回任务信息", "500", 500);
   }
-  return data.task;
+
+  // MiniMax returns the result inside `task.content.url` (V2 API).
+  const url =
+    task.content?.url ?? task.output?.url ?? task.video_url ?? undefined;
+
+  return {
+    id: task.id,
+    status: task.status,
+    url,
+    error: task.error,
+    resolution: task.resolution,
+    duration: task.duration,
+    ratio: task.ratio,
+    usage: task.usage,
+  };
 }
 
 /* -------------------------------------------------------------------------- */

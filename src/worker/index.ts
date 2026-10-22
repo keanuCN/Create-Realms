@@ -195,7 +195,8 @@ async function pollJob(job: JobRow) {
   }
 
   if (!state.url) {
-    throw new MinimaxError("任务成功但没有返回视频地址", "500", 500);
+    // Permanent: task reports success but exposes no downloadable URL.
+    throw new MinimaxError("任务已完成但没有返回视频地址", "no_output", 500);
   }
 
   const { data, contentType } = await downloadRemote(state.url);
@@ -233,11 +234,15 @@ async function failJob(job: JobRow, error: unknown) {
   const code = minimaxError?.code ?? "error";
   const retryable = ["1002", "429", "500", "529", "overloaded"].includes(code);
 
-  if (retryable && job.attempts < MAX_ATTEMPTS) {
-    const delay = Math.min(60, 5 * job.attempts);
+  // Count every failure (submit or poll) so a stuck job eventually stops.
+  const attempts = job.attempts + 1;
+
+  if (retryable && attempts < MAX_ATTEMPTS) {
+    const delay = Math.min(60, 5 * attempts);
     await sql`
       UPDATE assets SET
         status = 'pending',
+        attempts = ${attempts},
         locked_at = NULL,
         next_run_at = now() + ${`${delay} seconds`}::interval,
         error_code = ${code},
@@ -245,7 +250,7 @@ async function failJob(job: JobRow, error: unknown) {
         updated_at = now()
       WHERE id = ${job.id}
     `;
-    log(`job ${job.id} retry in ${delay}s (${code})`);
+    log(`job ${job.id} retry in ${delay}s (${code}, attempt ${attempts})`);
     return;
   }
 
