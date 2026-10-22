@@ -209,7 +209,7 @@ export default function AppShell({
             内部使用
           </Badge>
         </header>
-        <main className="animate-fade-up min-w-0 flex-1 px-4 pb-16 pt-5 sm:px-6 lg:px-8 lg:pt-8">
+        <main className="animate-fade-up min-w-0 flex-1 px-4 pb-6 pt-4 sm:px-6 lg:px-8 lg:pt-5">
           {children}
         </main>
       </div>

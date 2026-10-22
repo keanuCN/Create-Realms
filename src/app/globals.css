@@ -19,6 +19,8 @@
   --brand-soft: rgba(124, 108, 255, 0.16);
   --mint: #4de2c0;
   --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  /* 工具型页面：整屏高度扣掉头部与内外边距，页面本身不滚动 */
+  --studio-h: calc(100dvh - 7rem);
 }
 
 html,

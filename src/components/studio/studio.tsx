@@ -28,17 +28,17 @@ import {
 } from "@/components/ui";
 import { api } from "@/lib/client";
 import { MODELS, getModel, modelsFor, providerLabel, providersForModality } from "@/lib/models";
-import { providerColor, providerGradient } from "@/lib/provider-colors";
+import { providerColor } from "@/lib/provider-colors";
 import type { AssetWithUser, PromptTemplate } from "@/lib/types";
 
 type Tab = "video" | "image";
 
-function StatTile({ label, value }: { label: string; value: number }) {
+function StatPill({ label, value }: { label: string; value: number }) {
   return (
-    <div className="stat-tile min-w-[92px] px-4 py-3 text-center">
-      <p className="stat-value text-2xl font-semibold text-white">{value}</p>
-      <p className="mt-1 text-[11px] text-slate-400">{label}</p>
-    </div>
+    <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5">
+      <span className="font-semibold tabular-nums text-slate-200">{value}</span>
+      <span>{label}</span>
+    </span>
   );
 }
 
@@ -62,6 +62,7 @@ export default function Studio({ displayName }: { displayName: string }) {
   const [audioOn, setAudioOn] = useState(true);
   const [videoOptimizer, setVideoOptimizer] = useState(true);
   const [references, setReferences] = useState<UploadedImage[]>([]);
+  const [inputMode, setInputMode] = useState<"text" | "first" | "firstLast" | "reference">("text");
 
   const [recent, setRecent] = useState<AssetWithUser[]>([]);
   const [loadingRecent, setLoadingRecent] = useState(true);
@@ -138,6 +139,7 @@ export default function Studio({ displayName }: { displayName: string }) {
     setReferences([]);
     setFirstFrame(null);
     setLastFrame(null);
+    setInputMode("text");
   }
 
   function switchTab(next: Tab) {
@@ -265,47 +267,108 @@ export default function Studio({ displayName }: { displayName: string }) {
   const withFrames = Boolean(firstFrame || lastFrame);
   const ratios = model.ratios ?? ["16:9"];
 
-  return (
-    <div className="mx-auto max-w-[1440px]">
-      <div className="hero-band animate-fade-up mb-6 p-6 sm:p-7">
-        <div className="relative flex flex-wrap items-end justify-between gap-6">
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#bdb3ff]">
-              WORKSPACE
-            </p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white">
-              嗨，{displayName}，<span className="gradient-text">想做点什么？</span>
-            </h1>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-slate-400">
-              选一个模型供应商，写下画面描述，剩下的交给它 ——
-              视频与图片、多平台模型都在同一个入口。
-            </p>
-            <div className="mt-5 flex flex-wrap items-center gap-2">
-              <Button variant="secondary" size="sm" onClick={openTemplates}>
-                <BookOpen className="size-3.5" />
-                提示词模板
-              </Button>
-              <Link
-                href="/library"
-                className="lift inline-flex h-8 items-center gap-1 rounded-lg border border-white/12 bg-white/[0.06] px-3 text-[13px] text-slate-200 backdrop-blur transition hover:border-[#7c6cff]/40 hover:text-white"
-              >
-                作品库
-                <ChevronRight className="size-3.5" />
-              </Link>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3">
-            <StatTile label="我的作品" value={stats.assets} />
-            <StatTile label="在用供应商" value={stats.providers} />
-            <StatTile label="可用模型" value={MODELS.length} />
-          </div>
-        </div>
+  /** 操作条：宽屏钉在表单底部，窄屏浮动在视口底部，保证提交按钮永远可见 */
+  const actionBar = (
+    <>
+      <div className="mb-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-400">
+        <span className="font-medium text-slate-200">{model.label}</span>
+        <span className="text-slate-600">·</span>
+        <span>{resolution}</span>
+        {tab === "video" ? (
+          <>
+            <span className="text-slate-600">·</span>
+            <span>{duration} 秒</span>
+            <span className="text-slate-600">·</span>
+            <span>{videoCount} 条</span>
+            {model.supportsAudio ? (
+              <>
+                <span className="text-slate-600">·</span>
+                <span className={audioOn ? "text-emerald-300" : "text-slate-500"}>
+                  {audioOn ? "有声" : "无声"}
+                </span>
+              </>
+            ) : null}
+            {references.length ? (
+              <>
+                <span className="text-slate-600">·</span>
+                <span>参考图 {references.length} 张</span>
+              </>
+            ) : withFrames ? (
+              <>
+                <span className="text-slate-600">·</span>
+                <span>{lastFrame ? "首尾帧" : "首帧"}</span>
+              </>
+            ) : (
+              <>
+                <span className="text-slate-600">·</span>
+                <span>{ratio}</span>
+              </>
+            )}
+          </>
+        ) : (
+          <>
+            <span className="text-slate-600">·</span>
+            <span>{ratio}</span>
+            <span className="text-slate-600">·</span>
+            <span>{count} 张</span>
+          </>
+        )}
       </div>
 
-      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,430px)_minmax(0,1fr)]">
-        <section className="panel p-5 xl:sticky xl:top-6">
-          <div className="mb-5">
+      <Button
+        size="lg"
+        className="w-full"
+        loading={submitting}
+        onClick={submit}
+        disabled={!prompt.trim() || !currentReady}
+      >
+        <Sparkles className="size-4" />
+        {tab === "video"
+          ? `生成视频 · ${duration} 秒${videoCount > 1 ? ` × ${videoCount}` : ""}`
+          : `生成图片 · ${count} 张`}
+      </Button>
+
+      <p className="mt-2 text-center text-[11px] text-slate-600 lg:block">
+        {tab === "video"
+          ? "视频通常需要 1–3 分钟，可以先去做别的事"
+          : "图片通常需要 10–30 秒"}
+      </p>
+    </>
+  );
+
+  return (
+    <div className="mx-auto flex max-w-[1600px] flex-col pb-32 lg:h-[var(--studio-h)] lg:min-h-0 lg:pb-0">
+      {/* 紧凑头部：一行放下问候、统计与入口 */}
+      <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
+          <h1 className="text-xl font-semibold tracking-tight text-white">
+            嗨，{displayName}，<span className="gradient-text">想做点什么？</span>
+          </h1>
+          <div className="flex items-center gap-2 text-[11px] text-slate-400">
+            <StatPill label="我的作品" value={stats.assets} />
+            <StatPill label="在用供应商" value={stats.providers} />
+            <StatPill label="可用模型" value={MODELS.length} />
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={openTemplates}>
+            <BookOpen className="size-3.5" />
+            提示词模板
+          </Button>
+          <Link
+            href="/library"
+            className="lift inline-flex h-8 items-center gap-1 rounded-lg border border-white/12 bg-white/[0.06] px-3 text-[13px] text-slate-200 backdrop-blur transition hover:border-[#7c6cff]/40 hover:text-white"
+          >
+            作品库
+            <ChevronRight className="size-3.5" />
+          </Link>
+        </div>
+      </header>
+
+      <div className="grid min-h-0 flex-1 items-stretch gap-4 lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)]">
+        <section className="panel flex min-h-0 flex-col">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 pr-3">
+          <div className="mb-1">
             <Segmented
               value={tab}
               onChange={(next) => switchTab(next)}
@@ -376,7 +439,7 @@ export default function Studio({ displayName }: { displayName: string }) {
 
             <div className="space-y-2">
               <span className="text-[13px] font-medium text-slate-300">模型</span>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="flex flex-wrap gap-1.5">
                 {modelOptions.map((item) => {
                   const active = modelId === item.id;
                   const color = providerColor(item.provider);
@@ -384,36 +447,33 @@ export default function Studio({ displayName }: { displayName: string }) {
                     <button
                       key={item.id}
                       onClick={() => pickModel(item.id)}
+                      data-tip={item.tagline}
                       className={cn(
-                        "lift relative overflow-hidden rounded-xl border p-3 pl-4 text-left",
+                        "tip lift flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[12px] font-medium",
                         active
                           ? "text-white"
-                          : "border-white/10 bg-black/20 hover:border-white/20",
+                          : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-slate-200",
                       )}
                       style={
                         active
                           ? {
                               borderColor: color.from,
                               background: color.soft,
-                              boxShadow: `0 10px 26px -16px ${color.from}`,
+                              boxShadow: `0 8px 20px -12px ${color.from}`,
                             }
                           : undefined
                       }
                     >
                       <span
-                        aria-hidden
-                        className="absolute inset-y-0 left-0 w-[3px]"
-                        style={{ background: providerGradient(item.provider, "180deg") }}
+                        className="provider-dot"
+                        style={{ background: color.from, color: color.from }}
                       />
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[13px] font-semibold text-white">
-                          {item.label}
+                      {item.label}
+                      {item.badge ? (
+                        <span className="rounded-full bg-[#7c6cff]/25 px-1.5 py-px text-[10px] text-[#c9c2ff]">
+                          {item.badge}
                         </span>
-                        {item.badge ? <Badge tone="brand">{item.badge}</Badge> : null}
-                      </div>
-                      <p className="mt-1 text-[11px] leading-4 text-slate-400">
-                        {item.tagline}
-                      </p>
+                      ) : null}
                     </button>
                   );
                 })}
@@ -437,7 +497,7 @@ export default function Studio({ displayName }: { displayName: string }) {
               }
             >
               <Textarea
-                rows={tab === "video" ? 5 : 4}
+                rows={tab === "video" ? 4 : 4}
                 value={prompt}
                 maxLength={charLimit}
                 onChange={(event) => setPrompt(event.target.value)}
@@ -451,38 +511,62 @@ export default function Studio({ displayName }: { displayName: string }) {
 
             {tab === "video" ? (
               <>
-                {model.supportsReferenceImages ? (
-                  <MultiImageDrop
-                    label="参考图（可选）"
-                    hint={`主体 / 风格参考，最多 ${model.maxReferenceImages ?? 4} 张`}
-                    values={references}
-                    onChange={setReferences}
-                    max={model.maxReferenceImages ?? 4}
-                    disabled={Boolean(firstFrame || lastFrame)}
-                  />
-                ) : null}
-
+                {/* 输入模式：文生 / 首帧 / 首尾帧 / 参考图，只展示当前模式需要的上传区 */}
                 {model.supportsFrames ? (
-                  <div className="grid grid-cols-2 gap-3">
-                    <ImageDrop
-                      label="首帧（可选）"
-                      value={firstFrame}
-                      onChange={setFirstFrame}
-                      disabled={references.length > 0}
+                  <div className="space-y-2">
+                    <span className="text-[13px] font-medium text-slate-300">生成方式</span>
+                    <Segmented
+                      value={inputMode}
+                      onChange={(next) => {
+                        setInputMode(next);
+                        if (next === "text") {
+                          setFirstFrame(null);
+                          setLastFrame(null);
+                          setReferences([]);
+                        } else if (next === "first") {
+                          setLastFrame(null);
+                          setReferences([]);
+                        } else if (next === "firstLast") {
+                          setReferences([]);
+                        } else {
+                          setFirstFrame(null);
+                          setLastFrame(null);
+                        }
+                      }}
+                      options={[
+                        { value: "text" as const, label: "文生视频" },
+                        { value: "first" as const, label: "首帧" },
+                        ...(model.supportsLastFrame
+                          ? [{ value: "firstLast" as const, label: "首尾帧" }]
+                          : []),
+                        ...(model.supportsReferenceImages
+                          ? [{ value: "reference" as const, label: "参考图" }]
+                          : []),
+                      ]}
                     />
-                    <ImageDrop
-                      label="尾帧（可选）"
-                      value={lastFrame}
-                      onChange={setLastFrame}
-                      disabled={!firstFrame || !model.supportsLastFrame || references.length > 0}
-                    />
-                  </div>
-                ) : null}
 
-                {references.length && (firstFrame || lastFrame) ? (
-                  <p className="rounded-lg border border-amber-500/25 bg-amber-500/[0.08] px-3 py-2 text-[11px] leading-5 text-amber-200">
-                    首尾帧与参考图是两种互斥的方式，请只保留一种。
-                  </p>
+                    {inputMode === "first" ? (
+                      <ImageDrop label="首帧图片" value={firstFrame} onChange={setFirstFrame} />
+                    ) : inputMode === "firstLast" ? (
+                      <div className="grid grid-cols-2 gap-3">
+                        <ImageDrop label="首帧" value={firstFrame} onChange={setFirstFrame} />
+                        <ImageDrop
+                          label="尾帧"
+                          value={lastFrame}
+                          onChange={setLastFrame}
+                          disabled={!firstFrame}
+                        />
+                      </div>
+                    ) : inputMode === "reference" ? (
+                      <MultiImageDrop
+                        label="参考图"
+                        hint={`主体 / 风格参考，最多 ${model.maxReferenceImages ?? 4} 张`}
+                        values={references}
+                        onChange={setReferences}
+                        max={model.maxReferenceImages ?? 4}
+                      />
+                    ) : null}
+                  </div>
                 ) : null}
 
                 <Field label="分辨率">
@@ -509,11 +593,7 @@ export default function Studio({ displayName }: { displayName: string }) {
                   />
                 </Field>
 
-                {withFrames || references.length ? (
-                  <p className="rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2 text-[11px] leading-5 text-slate-500">
-                    已上传{references.length ? "参考图" : "参考帧"}，画面比例会跟随输入图片自动适配。
-                  </p>
-                ) : (
+                {inputMode === "text" ? (
                   <Field label="比例">
                     <div className="flex flex-wrap gap-2">
                       {ratios.map((item) => (
@@ -523,71 +603,94 @@ export default function Studio({ displayName }: { displayName: string }) {
                       ))}
                     </div>
                   </Field>
+                ) : (
+                  <p className="rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2 text-[11px] leading-5 text-slate-500">
+                    比例会跟随上传的图片自动适配。
+                  </p>
                 )}
 
-                {model.supportsPromptOptimizer ? (
-                  modelId === "MiniMax-H3-Max" ? (
-                    <Field label="提示词优化" hint="默认「均衡」效果最稳">
-                      <div className="flex gap-2">
-                        {(
-                          [
-                            ["disabled", "关闭"],
-                            ["balanced", "均衡"],
-                            ["quality", "高质量"],
-                          ] as const
-                        ).map(([value, label]) => (
-                          <Chip
-                            key={value}
-                            active={expansion === value}
-                            onClick={() => setExpansion(value)}
-                            className="flex-1"
+                {/* 高级选项合并成一行，减少纵向占用 */}
+                <div className="space-y-2 rounded-xl border border-white/10 bg-black/20 p-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="shrink-0 text-[11px] text-slate-400">生成数量</span>
+                    <div className="flex flex-1 gap-1.5">
+                      {Array.from({ length: model.maxVideos ?? 4 }, (_, index) => index + 1).map(
+                        (item) => (
+                          <button
+                            key={item}
+                            type="button"
+                            onClick={() => setVideoCount(item)}
+                            className={cn(
+                              "h-7 flex-1 rounded-lg border text-[12px] transition",
+                              videoCount === item
+                                ? "border-[#7c6cff]/60 bg-[#7c6cff]/20 text-white"
+                                : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-slate-200",
+                            )}
                           >
-                            {label}
-                          </Chip>
-                        ))}
-                      </div>
-                    </Field>
-                  ) : (
-                    <div className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3.5 py-3 transition hover:border-[#7c6cff]/30">
-                      <div>
-                        <p className="text-[13px] text-slate-200">提示词优化</p>
-                        <p className="mt-0.5 text-[11px] text-slate-500">
-                          {model.promptOptimizerHint ?? "自动补充画面细节"}
-                        </p>
-                      </div>
-                      <Switch checked={videoOptimizer} onChange={setVideoOptimizer} />
+                            {item}
+                          </button>
+                        ),
+                      )}
                     </div>
-                  )
-                ) : null}
-
-                {model.supportsAudio ? (
-                  <div className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3.5 py-3 transition hover:border-[#7c6cff]/30">
-                    <div>
-                      <p className="text-[13px] text-slate-200">生成音频</p>
-                      <p className="mt-0.5 text-[11px] text-slate-500">
-                        {audioOn ? "音画同出（对白 / 音效 / 配乐）" : "只出画面，不生成声音"}
-                      </p>
-                    </div>
-                    <Switch checked={audioOn} onChange={setAudioOn} />
                   </div>
-                ) : null}
 
-                <Field label="生成数量" hint={`同一提示词生成多条，最多 ${model.maxVideos ?? 4} 条`}>
-                  <div className="flex flex-wrap gap-2">
-                    {Array.from({ length: model.maxVideos ?? 4 }, (_, index) => index + 1).map(
-                      (item) => (
-                        <Chip
-                          key={item}
-                          active={videoCount === item}
-                          onClick={() => setVideoCount(item)}
-                          className="flex-1"
-                        >
-                          {item} 条
-                        </Chip>
-                      ),
-                    )}
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-white/[0.06] pt-2">
+                    {model.supportsAudio ? (
+                      <div className="flex items-center gap-2">
+                        <Switch checked={audioOn} onChange={setAudioOn} />
+                        <span className="text-[12px] text-slate-300">
+                          音频
+                          <span className="ml-1 text-[11px] text-slate-500">
+                            {audioOn ? "开" : "关"}
+                          </span>
+                        </span>
+                      </div>
+                    ) : null}
+
+                    {model.supportsPromptOptimizer && modelId !== "MiniMax-H3-Max" ? (
+                      <div className="flex items-center gap-2">
+                        <Switch checked={videoOptimizer} onChange={setVideoOptimizer} />
+                        <span className="text-[12px] text-slate-300">提示词优化</span>
+                      </div>
+                    ) : null}
+
+                    {modelId === "MiniMax-H3-Max" ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-[12px] text-slate-300">提示词优化</span>
+                        <div className="flex gap-1">
+                          {(
+                            [
+                              ["disabled", "关"],
+                              ["balanced", "均衡"],
+                              ["quality", "高"],
+                            ] as const
+                          ).map(([value, label]) => (
+                            <button
+                              key={value}
+                              type="button"
+                              onClick={() => setExpansion(value)}
+                              title={
+                                value === "disabled"
+                                  ? "不做扩写，完全按你的提示词"
+                                  : value === "balanced"
+                                    ? "均衡扩写（推荐）"
+                                    : "更注重扩写质量"
+                              }
+                              className={cn(
+                                "h-7 rounded-lg border px-2 text-[11px] transition",
+                                expansion === value
+                                  ? "border-[#7c6cff]/60 bg-[#7c6cff]/20 text-white"
+                                  : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-slate-200",
+                              )}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
-                </Field>
+                </div>
               </>
             ) : (
               <>
@@ -642,27 +745,16 @@ export default function Studio({ displayName }: { displayName: string }) {
                 </div>
               </>
             )}
+          </div>
+          </div>
 
-            <Button
-              size="lg"
-              className="w-full"
-              loading={submitting}
-              onClick={submit}
-              disabled={!prompt.trim() || !currentReady}
-            >
-              <Sparkles className="size-4" />
-              {tab === "video" ? `生成视频 · ${duration} 秒` : `生成图片 · ${count} 张`}
-            </Button>
-
-            <p className="text-center text-[11px] text-slate-600">
-              {tab === "video"
-                ? "视频生成通常需要 1–3 分钟，可以先去做别的事"
-                : "图片生成通常需要 10–30 秒"}
-            </p>
+          {/* 固定操作条：无论表单滚到哪，提交按钮始终可见 */}
+          <div className="hidden border-t border-white/[0.07] bg-black/20 p-4 backdrop-blur-sm lg:block">
+            {actionBar}
           </div>
         </section>
 
-        <section className="min-w-0">
+        <section className="flex min-h-0 min-w-0 flex-col">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-medium text-slate-300">最近生成</h2>
             <Link
@@ -674,6 +766,7 @@ export default function Studio({ displayName }: { displayName: string }) {
             </Link>
           </div>
 
+          <div className="min-h-0 flex-1 overflow-y-auto pr-1">
           {loadingRecent ? (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {Array.from({ length: 6 }).map((_, index) => (
@@ -701,6 +794,7 @@ export default function Studio({ displayName }: { displayName: string }) {
               ))}
             </div>
           )}
+          </div>
         </section>
       </div>
 
@@ -710,6 +804,11 @@ export default function Studio({ displayName }: { displayName: string }) {
         onClose={() => setViewer(null)}
         onChanged={() => void loadRecent()}
       />
+
+      {/* 窄屏：浮动操作条 */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-[#0b0f16]/95 px-4 pb-3 pt-2.5 backdrop-blur-md lg:hidden">
+        {actionBar}
+      </div>
 
       <Modal
         open={templatesOpen}
