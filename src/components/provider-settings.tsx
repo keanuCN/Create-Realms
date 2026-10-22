@@ -159,11 +159,25 @@ export default function ProviderSettings() {
   async function test(item: ProviderView) {
     setBusy(item.id);
     try {
-      const result = await api<{ ok: boolean; message: string }>(
+      // 把界面上刚填、还没保存的内容一起送过去测，避免「填了却提示缺少凭据」
+      const draft = drafts[item.id];
+      const credentials: Record<string, string> = {};
+      for (const field of item.credentials) {
+        const value = (draft?.values[field.key] ?? "").trim();
+        if (value) credentials[field.key] = value;
+      }
+
+      const result = await api<{ ok: boolean; message: string; usedDraft?: boolean }>(
         `/api/admin/providers/${item.id}/test`,
-        { method: "POST" },
+        { method: "POST", body: JSON.stringify({ credentials }) },
       );
-      toast(result.message, result.ok ? "success" : "error");
+
+      const suffix = result.usedDraft
+        ? result.ok
+          ? "（用的是未保存的内容，记得点「保存」才生效）"
+          : "（用的是未保存的内容）"
+        : "";
+      toast(result.message + suffix, result.ok ? "success" : "error");
       await load();
     } catch (error) {
       toast(error instanceof Error ? error.message : "测试失败", "error");
@@ -202,6 +216,9 @@ export default function ProviderSettings() {
             if (!draft) return null;
             const isBusy = busy === item.id;
             const active = item.configured && item.enabled && item.status === "ready";
+            const hasUnsavedDraft = item.credentials.some(
+              (field) => Boolean((draft.values[field.key] ?? "").trim()),
+            );
 
             return (
               <article
@@ -279,7 +296,7 @@ export default function ProviderSettings() {
                         <p className="text-[11px] text-slate-500">
                           {field.configured
                             ? `当前：${field.masked}（留空表示不修改）`
-                            : "尚未配置，粘贴完整内容后保存"}
+                            : "尚未配置。填完可直接点「测试连接」验证，确认无误再点「保存」"}
                         </p>
                       </div>
                     ))}
@@ -317,6 +334,9 @@ export default function ProviderSettings() {
                   </div>
 
                   <div className="ml-auto flex flex-wrap items-center gap-2">
+                    {hasUnsavedDraft ? (
+                      <Badge tone="warning">有未保存的改动</Badge>
+                    ) : null}
                     <Button
                       variant="secondary"
                       size="sm"

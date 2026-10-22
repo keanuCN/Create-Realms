@@ -365,7 +365,9 @@ export async function saveProviderConfig(
     }
   }
 
-  const encrypted = encryptSecret(serializeCredentials(merged));
+  const mergedKeys = Object.keys(merged);
+  // 空凭据时存 NULL，而不是一个空对象密文，这样 has_key 才有意义
+  const encrypted = mergedKeys.length ? encryptSecret(serializeCredentials(merged)) : null;
 
   if (!existing.length) {
     await sql`
@@ -407,36 +409,61 @@ async function recordCheck(provider: string, ok: boolean, message: string) {
   invalidate(provider);
 }
 
-export async function testProvider(provider: string): Promise<{ ok: boolean; message: string }> {
+export interface TestResult {
+  ok: boolean;
+  message: string;
+  /** 本次测试用的是界面上未保存的内容（不代表已生效） */
+  usedDraft?: boolean;
+}
+
+/**
+ * 连通性测试。
+ * `overrides` 用于「界面上刚填、还没保存」的凭据 —— 这样用户填完就能直接测，
+ * 不会因为「测试只认已保存的值」而误报缺少凭据。
+ */
+export async function testProvider(
+  provider: string,
+  overrides?: Credentials,
+): Promise<TestResult> {
   const spec = getProviderSpec(provider);
   if (!spec) return { ok: false, message: "未知的模型供应商" };
 
   const adapter = getAdapter(provider);
   const runtime = await getProviderRuntime(provider);
 
-  let result: { ok: boolean; message: string };
+  const draft = activeCredentials(overrides ?? {});
+  const usedDraft = Object.keys(draft).length > 0;
+  const credentials = usedDraft ? { ...runtime.credentials, ...draft } : runtime.credentials;
+
+  let result: TestResult;
   if (!adapter) {
     result = {
       ok: false,
-      message: "该供应商的适配器还未接入，Key 会先保存下来备用",
+      usedDraft,
+      message: "该供应商的适配器还未接入，凭据会先保存下来备用",
     };
-  } else if (!hasAllCredentials(spec, runtime.credentials)) {
+  } else if (!hasAllCredentials(spec, credentials)) {
     result = {
       ok: false,
+      usedDraft,
       message: `还缺少：${requiredCredentialFields(spec)
-        .filter((field) => !runtime.credentials[field.key])
+        .filter((field) => !credentials[field.key])
         .map((field) => field.label)
         .join("、")}`,
     };
   } else {
-    result = await adapter.verify({
+    const verify = await adapter.verify({
       provider,
       apiBase: runtime.apiBase,
-      apiKey: runtime.apiKey,
-      credentials: runtime.credentials,
+      apiKey: credentials.apiKey ?? "",
+      credentials,
     });
+    result = { ...verify, usedDraft };
   }
 
-  await recordCheck(provider, result.ok, result.message).catch(() => {});
+  // 只用已保存的配置测试时才写入「上次检查结果」，避免用未保存的值污染记录
+  if (!usedDraft) {
+    await recordCheck(provider, result.ok, result.message).catch(() => {});
+  }
   return result;
 }
