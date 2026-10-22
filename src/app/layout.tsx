@@ -3,8 +3,8 @@ import "./globals.css";
 import { ToastProvider } from "@/components/ui";
 
 export const metadata: Metadata = {
-  title: "AIGC 工坊 · 图片与视频生成",
-  description: "团队内部的 AI 图片 / 视频生成工作台",
+  title: "造境 · AI 图片与视频创作",
+  description: "团队内部的多模型 AI 图片与视频创作工作台",
 };
 
 export const viewport: Viewport = {

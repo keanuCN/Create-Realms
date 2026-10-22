@@ -44,7 +44,7 @@ export default function LoginPage() {
               <Sparkles className="size-5 text-white" />
             </div>
             <div>
-              <p className="text-base font-semibold text-white">AIGC 工坊</p>
+              <p className="text-base font-semibold text-white">造境</p>
               <p className="text-xs text-slate-500">团队内部创作空间</p>
             </div>
           </div>
@@ -83,7 +83,7 @@ export default function LoginPage() {
             <div className="mb-3 grid size-10 place-items-center rounded-xl bg-gradient-to-br from-[#7c6cff] to-[#4de2c0]">
               <Sparkles className="size-5 text-white" />
             </div>
-            <p className="text-lg font-semibold text-white">AIGC 工坊</p>
+            <p className="text-lg font-semibold text-white">造境</p>
           </div>
 
           <h2 className="text-xl font-semibold text-white">登录</h2>

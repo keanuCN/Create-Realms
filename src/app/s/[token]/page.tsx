@@ -13,7 +13,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { token } = await params;
   const asset = await getAssetByShareToken(token);
   return {
-    title: asset ? `${asset.title || "AI 作品"} · AIGC 工坊` : "作品不存在",
+    title: asset ? `${asset.title || "AI 作品"} · 造境` : "作品不存在",
   };
 }
 
@@ -29,7 +29,7 @@ export default async function SharePage({ params }: Props) {
           <Sparkles className="size-4 text-white" />
         </div>
         <div>
-          <p className="text-sm font-semibold text-white">AIGC 工坊</p>
+          <p className="text-sm font-semibold text-white">造境</p>
           <p className="text-[11px] text-slate-500">团队作品分享</p>
         </div>
       </header>

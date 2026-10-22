@@ -1,4 +1,4 @@
--- AIGC Studio schema (idempotent)
+-- 造境 schema (idempotent)
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 

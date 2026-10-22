@@ -80,7 +80,7 @@ export default function AppShell({
           <Sparkles className="relative size-4.5" />
         </div>
         <div>
-          <p className="text-sm font-semibold tracking-wide text-white">AIGC 工坊</p>
+          <p className="text-sm font-semibold tracking-wide text-white">造境</p>
           <p className="text-[11px] text-slate-500">团队创作空间</p>
         </div>
       </div>
@@ -203,7 +203,7 @@ export default function AppShell({
           >
             <Menu className="size-5" />
           </button>
-          <span className="text-sm font-semibold">AIGC 工坊</span>
+          <span className="text-sm font-semibold">造境</span>
           <Badge tone="brand" className="ml-auto">
             <Images className="size-3" />
             内部使用

@@ -13,7 +13,7 @@ function bool(value: string | undefined, fallback = false) {
 }
 
 export const env = {
-  appName: process.env.APP_NAME || "AIGC 工坊",
+  appName: process.env.APP_NAME || "造境",
   databaseUrl:
     process.env.DATABASE_URL || "postgres://aigc:aigc@127.0.0.1:5432/aigc",
   mediaDir: path.resolve(process.env.MEDIA_DIR || "./data/media"),

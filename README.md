@@ -1,6 +1,8 @@
-# AIGC 工坊
+# 造境
 
-团队内部使用的 AI 图片 / 视频生成工作台。部署在一台内网机器上，同事用浏览器访问：多家模型平台随意切换、作品自动归档、可收藏下载、提示词互相复用。
+团队内部使用的 AI 图片 / 视频生成工作台。支持多家模型平台切换、作品自动归档、提示词复用与团队协作。
+
+部署在一台内网机器上，同事通过浏览器访问；可收藏和下载作品，也可分享创作灵感。
 
 - **开箱即用**：Docker 三容器（应用 / 任务队列 / 数据库），一条命令起服务
 - **多供应商**：MiniMax、即梦 Seedance、可灵、PixVerse、Vidu、通义万相 / HappyHorse
@@ -154,7 +156,7 @@ docker compose logs -f app
 2. **放行防火墙**（Windows 默认会拦截，必须做一次，**用管理员身份打开 PowerShell**）：
 
    ```powershell
-   New-NetFirewallRule -DisplayName "AIGC Studio 3000" -Direction Inbound -Protocol TCP -LocalPort 3000 -Action Allow
+   New-NetFirewallRule -DisplayName "造境 3000" -Direction Inbound -Protocol TCP -LocalPort 3000 -Action Allow
    ```
 
    > 非管理员执行会报「Access is denied」，右键开始菜单 → 「终端(管理员)」再运行。
