@@ -19,6 +19,8 @@ import {
   EmptyState,
   Field,
   Modal,
+  Segmented,
+  Switch,
   Textarea,
   cn,
   useToast,
@@ -221,7 +223,7 @@ export default function Studio({ displayName }: { displayName: string }) {
         <div>
           <p className="text-xs font-medium tracking-wider text-[#a99cff]">WORKSPACE</p>
           <h1 className="mt-1 text-2xl font-semibold text-white">
-            嗨，{displayName}，想做点什么？
+            嗨，{displayName}，<span className="gradient-text">想做点什么？</span>
           </h1>
           <p className="mt-1 text-sm text-slate-500">
             选一个模型，写下画面描述，剩下的交给它。
@@ -244,31 +246,31 @@ export default function Studio({ displayName }: { displayName: string }) {
 
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,430px)_minmax(0,1fr)]">
         <section className="panel p-5 xl:sticky xl:top-6">
-          <div className="mb-5 grid grid-cols-2 gap-1 rounded-xl border border-white/10 bg-black/25 p-1">
-            <button
-              onClick={() => switchTab("video")}
-              className={cn(
-                "flex h-9 items-center justify-center gap-2 rounded-lg text-[13px] font-medium transition",
-                tab === "video"
-                  ? "bg-white/[0.09] text-white shadow"
-                  : "text-slate-500 hover:text-slate-300",
-              )}
-            >
-              <Clapperboard className="size-4" />
-              视频生成
-            </button>
-            <button
-              onClick={() => switchTab("image")}
-              className={cn(
-                "flex h-9 items-center justify-center gap-2 rounded-lg text-[13px] font-medium transition",
-                tab === "image"
-                  ? "bg-white/[0.09] text-white shadow"
-                  : "text-slate-500 hover:text-slate-300",
-              )}
-            >
-              <ImageIcon className="size-4" />
-              图片生成
-            </button>
+          <div className="mb-5">
+            <Segmented
+              value={tab}
+              onChange={(next) => switchTab(next)}
+              options={[
+                {
+                  value: "video",
+                  label: (
+                    <>
+                      <Clapperboard className="size-4" />
+                      视频生成
+                    </>
+                  ),
+                },
+                {
+                  value: "image",
+                  label: (
+                    <>
+                      <ImageIcon className="size-4" />
+                      图片生成
+                    </>
+                  ),
+                },
+              ]}
+            />
           </div>
 
           <div className="space-y-5">
@@ -484,20 +486,15 @@ export default function Studio({ displayName }: { displayName: string }) {
                   </div>
                 </Field>
 
-                <label className="flex cursor-pointer items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3.5 py-3">
+                <div className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3.5 py-3 transition hover:border-[#7c6cff]/30">
                   <div>
                     <p className="text-[13px] text-slate-200">智能改写提示词</p>
                     <p className="mt-0.5 text-[11px] text-slate-500">
                       自动补充画面细节，通常更出片
                     </p>
                   </div>
-                  <input
-                    type="checkbox"
-                    checked={optimizer}
-                    onChange={(event) => setOptimizer(event.target.checked)}
-                    className="size-4 accent-[#7c6cff]"
-                  />
-                </label>
+                  <Switch checked={optimizer} onChange={setOptimizer} />
+                </div>
               </>
             )}
 
@@ -537,7 +534,7 @@ export default function Studio({ displayName }: { displayName: string }) {
               {Array.from({ length: 6 }).map((_, index) => (
                 <div
                   key={index}
-                  className="aspect-square animate-pulse rounded-2xl border border-white/5 bg-white/[0.03]"
+                  className="skeleton aspect-square rounded-2xl border border-white/5"
                 />
               ))}
             </div>
@@ -579,7 +576,7 @@ export default function Studio({ displayName }: { displayName: string }) {
         {templatesLoading ? (
           <div className="grid gap-2">
             {Array.from({ length: 4 }).map((_, index) => (
-              <div key={index} className="h-16 animate-pulse rounded-xl bg-white/5" />
+              <div key={index} className="skeleton h-16 rounded-xl border border-white/5" />
             ))}
           </div>
         ) : templates.length === 0 ? (

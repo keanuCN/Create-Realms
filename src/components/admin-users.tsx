@@ -124,7 +124,7 @@ export default function AdminUsers({ me }: { me: User }) {
       {loading ? (
         <div className="space-y-2">
           {Array.from({ length: 4 }).map((_, index) => (
-            <div key={index} className="h-14 animate-pulse rounded-xl bg-white/[0.03]" />
+            <div key={index} className="skeleton h-14 rounded-xl border border-white/5" />
           ))}
         </div>
       ) : items.length === 0 ? (

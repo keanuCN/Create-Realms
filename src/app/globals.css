@@ -15,6 +15,10 @@
   --panel: #10151f;
   --panel-2: #151b27;
   --line: rgba(255, 255, 255, 0.08);
+  --brand: #7c6cff;
+  --brand-soft: rgba(124, 108, 255, 0.16);
+  --mint: #4de2c0;
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 html,
@@ -24,16 +28,33 @@ body {
 
 body {
   background:
-    radial-gradient(1200px 600px at 15% -10%, rgba(124, 108, 255, 0.16), transparent 60%),
-    radial-gradient(900px 500px at 100% 0%, rgba(77, 226, 192, 0.08), transparent 55%),
+    radial-gradient(1100px 560px at 12% -12%, rgba(124, 108, 255, 0.18), transparent 62%),
+    radial-gradient(900px 500px at 102% -4%, rgba(77, 226, 192, 0.1), transparent 58%),
+    radial-gradient(700px 700px at 50% 120%, rgba(124, 108, 255, 0.08), transparent 60%),
     var(--bg);
   color: #e8ecf4;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* 细网格纹理，只在顶部淡出，给暗色界面一点层次 */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(1100px 640px at 50% -8%, #000 15%, transparent 78%);
 }
 
 ::selection {
-  background: rgba(124, 108, 255, 0.4);
+  background: rgba(124, 108, 255, 0.42);
+  color: #fff;
 }
 
 ::-webkit-scrollbar {
@@ -41,9 +62,14 @@ body {
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.14);
   border-radius: 999px;
   border: 2px solid transparent;
+  background-clip: content-box;
+  transition: background 0.2s;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(124, 108, 255, 0.45);
   background-clip: content-box;
 }
 ::-webkit-scrollbar-track {
@@ -56,22 +82,9 @@ select {
   color-scheme: dark;
 }
 
-@layer utilities {
-  .panel {
-    background: linear-gradient(180deg, rgba(21, 27, 39, 0.9), rgba(16, 21, 31, 0.9));
-    border: 1px solid var(--line);
-    border-radius: 16px;
-  }
-  .glow {
-    box-shadow: 0 10px 40px -12px rgba(124, 108, 255, 0.45);
-  }
-  .text-dim {
-    color: #8b95a7;
-  }
-  .no-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-}
+/* ------------------------------------------------------------------ */
+/* Keyframes                                                           */
+/* ------------------------------------------------------------------ */
 
 @keyframes shimmer {
   0% {
@@ -82,13 +95,444 @@ select {
   }
 }
 
-.shimmer {
-  background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0.04) 0%,
-    rgba(255, 255, 255, 0.1) 50%,
-    rgba(255, 255, 255, 0.04) 100%
-  );
-  background-size: 800px 100%;
-  animation: shimmer 1.6s infinite linear;
+@keyframes skeleton-sweep {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ring-pulse {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.5;
+  }
+  70% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-7px);
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes toast-bar {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes orb-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(24px, -18px, 0) scale(1.06);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Surfaces                                                            */
+/* ------------------------------------------------------------------ */
+
+@layer utilities {
+  .panel {
+    position: relative;
+    background: linear-gradient(180deg, rgba(22, 28, 42, 0.86), rgba(13, 18, 28, 0.92));
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    box-shadow:
+      0 24px 60px -40px rgba(0, 0, 0, 0.95),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(14px);
+  }
+
+  /* 顶部 1px 高光，玻璃质感的点睛之笔 */
+  .panel::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 1px;
+    border-radius: inherit;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(124, 108, 255, 0.55) 35%,
+      rgba(77, 226, 192, 0.4) 65%,
+      transparent
+    );
+    opacity: 0.7;
+    pointer-events: none;
+  }
+
+  .glass {
+    background: rgba(16, 21, 33, 0.66);
+    backdrop-filter: blur(18px) saturate(140%);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+  }
+
+  .glow {
+    box-shadow: 0 18px 45px -18px rgba(124, 108, 255, 0.6);
+  }
+
+  .text-dim {
+    color: #8b95a7;
+  }
+
+  .gradient-text {
+    background: linear-gradient(100deg, #d5d0ff, #8b7dff 30%, #4de2c0 62%, #d5d0ff);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: gradient-shift 7s linear infinite;
+  }
+
+  /* 渐变描边（hover / active 时点亮） */
+  .glow-border {
+    position: relative;
+  }
+  .glow-border::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      135deg,
+      rgba(124, 108, 255, 0.9),
+      rgba(77, 226, 192, 0.65),
+      rgba(124, 108, 255, 0.16)
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.35s var(--ease-out);
+    pointer-events: none;
+  }
+  .glow-border:hover::after {
+    opacity: 1;
+  }
+
+  /* 卡片悬浮：上移 + 柔光 + 媒体轻微放大 */
+  .card-hover {
+    transition:
+      transform 0.4s var(--ease-out),
+      box-shadow 0.4s var(--ease-out),
+      border-color 0.4s var(--ease-out);
+  }
+  .card-hover:hover {
+    transform: translateY(-4px);
+    border-color: rgba(124, 108, 255, 0.38);
+    box-shadow:
+      0 30px 60px -32px rgba(124, 108, 255, 0.55),
+      0 0 0 1px rgba(124, 108, 255, 0.12);
+  }
+  .card-hover:hover .zoom-media {
+    transform: scale(1.045);
+  }
+  .zoom-media {
+    transition: transform 0.6s var(--ease-out);
+  }
+
+  /* 按钮上的扫光 */
+  .btn-shine {
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-shine::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      110deg,
+      transparent 18%,
+      rgba(255, 255, 255, 0.3) 45%,
+      transparent 72%
+    );
+    transform: translateX(-130%);
+    transition: transform 0.75s var(--ease-out);
+    pointer-events: none;
+  }
+  .btn-shine:hover::after {
+    transform: translateX(130%);
+  }
+
+  .lift {
+    transition:
+      transform 0.25s var(--ease-out),
+      box-shadow 0.25s var(--ease-out),
+      background-color 0.25s var(--ease-out);
+  }
+  .lift:hover {
+    transform: translateY(-1px);
+  }
+  .lift:active {
+    transform: translateY(0) scale(0.985);
+  }
+
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.035) 25%,
+      rgba(255, 255, 255, 0.09) 37%,
+      rgba(255, 255, 255, 0.035) 63%
+    );
+    background-size: 400% 100%;
+    animation: skeleton-sweep 1.4s ease infinite;
+  }
+
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.04) 0%,
+      rgba(255, 255, 255, 0.11) 50%,
+      rgba(255, 255, 255, 0.04) 100%
+    );
+    background-size: 800px 100%;
+    animation: shimmer 1.6s infinite linear;
+  }
+
+  .pulse-ring::after {
+    content: "";
+    position: absolute;
+    inset: -4px;
+    border-radius: 999px;
+    border: 1px solid rgba(124, 108, 255, 0.7);
+    animation: ring-pulse 1.9s ease-out infinite;
+  }
+
+  .orbit {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: conic-gradient(
+      from 0deg,
+      transparent 0 55%,
+      rgba(124, 108, 255, 0.85) 82%,
+      rgba(77, 226, 192, 0.95) 100%
+    );
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 0);
+    mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 0);
+    animation: spin 1.05s linear infinite;
+  }
+
+  .float-slow {
+    animation: float-slow 4.5s ease-in-out infinite;
+  }
+
+  .orb {
+    position: absolute;
+    border-radius: 999px;
+    filter: blur(80px);
+    pointer-events: none;
+    animation: orb-drift 16s ease-in-out infinite;
+  }
+
+  .animate-fade-up {
+    animation: fade-up 0.5s var(--ease-out) both;
+  }
+  .animate-pop-in {
+    animation: pop-in 0.28s var(--ease-out) both;
+  }
+  .animate-backdrop-in {
+    animation: backdrop-in 0.25s ease both;
+  }
+  .animate-toast-in {
+    animation: toast-in 0.32s var(--ease-out) both;
+  }
+
+  .nav-item {
+    position: relative;
+    transition:
+      background-color 0.25s var(--ease-out),
+      color 0.25s var(--ease-out),
+      transform 0.25s var(--ease-out);
+  }
+  .nav-item:hover {
+    transform: translateX(2px);
+  }
+  .nav-item[data-active="true"]::before {
+    content: "";
+    position: absolute;
+    left: -10px;
+    top: 50%;
+    width: 3px;
+    height: 58%;
+    transform: translateY(-50%);
+    border-radius: 999px;
+    background: linear-gradient(180deg, #8b7dff, #4de2c0);
+    box-shadow: 0 0 14px rgba(124, 108, 255, 0.9);
+  }
+
+  /* 开关（替代原生 checkbox） */
+  .switch {
+    position: relative;
+    display: inline-flex;
+    width: 44px;
+    height: 24px;
+    flex: none;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition:
+      background 0.3s var(--ease-out),
+      box-shadow 0.3s var(--ease-out);
+  }
+  .switch input {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    cursor: pointer;
+  }
+  .switch .knob {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #cfd6e4;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+    transition:
+      transform 0.3s var(--ease-out),
+      background 0.3s var(--ease-out);
+  }
+  .switch:has(input:checked) {
+    background: linear-gradient(120deg, #7c6cff, #6a56f5);
+    border-color: rgba(124, 108, 255, 0.55);
+    box-shadow: 0 0 16px -2px rgba(124, 108, 255, 0.75);
+  }
+  .switch:has(input:checked) .knob {
+    transform: translateX(20px);
+    background: #fff;
+  }
+  .switch:hover {
+    box-shadow: 0 0 14px -4px rgba(124, 108, 255, 0.6);
+  }
+
+  /* CSS tooltip（Uiverse 常见做法） */
+  .tip {
+    position: relative;
+  }
+  .tip::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%) translateY(4px);
+    opacity: 0;
+    pointer-events: none;
+    white-space: nowrap;
+    background: rgba(10, 14, 21, 0.97);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #e2e8f0;
+    font-size: 11px;
+    line-height: 1;
+    padding: 6px 9px;
+    border-radius: 8px;
+    box-shadow: 0 12px 28px -14px rgba(0, 0, 0, 0.9);
+    transition:
+      opacity 0.2s var(--ease-out),
+      transform 0.2s var(--ease-out);
+    z-index: 40;
+  }
+  .tip:hover::after {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

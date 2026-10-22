@@ -34,10 +34,10 @@ export default function LoginPage() {
 
   return (
     <div className="relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-10">
-      <div className="pointer-events-none absolute -left-32 top-1/4 size-96 rounded-full bg-[#7c6cff]/20 blur-[120px]" />
-      <div className="pointer-events-none absolute -right-24 bottom-0 size-80 rounded-full bg-[#4de2c0]/10 blur-[120px]" />
+      <div className="orb -left-32 top-1/4 size-96 bg-[#7c6cff]/25" />
+      <div className="orb -right-24 bottom-0 size-80 bg-[#4de2c0]/15" style={{ animationDelay: "-6s" }} />
 
-      <div className="relative grid w-full max-w-4xl overflow-hidden rounded-3xl border border-white/10 bg-[#0d121b]/80 shadow-2xl backdrop-blur-xl md:grid-cols-[1.1fr_1fr]">
+      <div className="animate-pop-in glass relative grid w-full max-w-4xl overflow-hidden rounded-3xl shadow-2xl md:grid-cols-[1.1fr_1fr]">
         <div className="relative hidden flex-col justify-between gap-10 border-r border-white/5 bg-gradient-to-br from-[#141a2a] via-[#101623] to-[#0b1017] p-10 md:flex">
           <div className="flex items-center gap-2.5">
             <div className="grid size-10 place-items-center rounded-xl bg-gradient-to-br from-[#7c6cff] to-[#4de2c0] shadow-lg">

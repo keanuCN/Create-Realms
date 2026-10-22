@@ -28,11 +28,13 @@ type ButtonSize = "sm" | "md" | "lg";
 
 const buttonVariants: Record<ButtonVariant, string> = {
   primary:
-    "bg-[#7c6cff] text-white hover:bg-[#8b7dff] active:bg-[#6a56f5] shadow-[0_8px_24px_-10px_rgba(124,108,255,.8)]",
+    "btn-shine text-white bg-gradient-to-b from-[#8b7dff] to-[#6a56f5] border border-[#8b7dff]/40 hover:from-[#978bff] hover:to-[#7566f8] shadow-[0_10px_30px_-12px_rgba(124,108,255,.85)] hover:shadow-[0_16px_38px_-12px_rgba(124,108,255,.95)]",
   secondary:
-    "bg-white/[0.06] text-slate-100 hover:bg-white/[0.1] border border-white/10",
-  ghost: "text-slate-300 hover:text-white hover:bg-white/[0.06]",
-  danger: "bg-rose-500/15 text-rose-300 hover:bg-rose-500/25 border border-rose-500/20",
+    "text-slate-100 bg-white/[0.05] border border-white/10 hover:bg-white/[0.09] hover:border-[#7c6cff]/40 hover:text-white backdrop-blur-sm",
+  ghost:
+    "text-slate-400 border border-transparent hover:text-white hover:bg-white/[0.06] hover:border-white/10",
+  danger:
+    "text-rose-200 bg-rose-500/10 border border-rose-500/25 hover:bg-rose-500/20 hover:text-rose-100",
 };
 
 const buttonSizes: Record<ButtonSize, string> = {
@@ -57,7 +59,7 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+        "lift inline-flex select-none items-center justify-center font-medium outline-none transition focus-visible:ring-2 focus-visible:ring-[#7c6cff]/60 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:transform-none",
         buttonVariants[variant],
         buttonSizes[size],
         className,
@@ -66,23 +68,18 @@ export function Button({
       {...props}
     >
       {loading ? <Loader2 className="size-4 animate-spin" /> : null}
-      {children}
+      <span className="relative inline-flex items-center gap-1.5">{children}</span>
     </button>
   );
 }
 
 /* ----------------------------- Inputs ----------------------------- */
 
+const fieldBase =
+  "w-full rounded-xl border border-white/10 bg-black/25 text-slate-100 placeholder:text-slate-500 outline-none transition-all duration-300 focus:border-[#7c6cff]/70 focus:bg-black/35 focus:shadow-[0_0_0_4px_rgba(124,108,255,.14),0_0_22px_-8px_rgba(124,108,255,.9)]";
+
 export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <input
-      className={cn(
-        "h-10 w-full rounded-xl border border-white/10 bg-black/25 px-3.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-[#7c6cff]/70 focus:ring-2 focus:ring-[#7c6cff]/20",
-        className,
-      )}
-      {...props}
-    />
-  );
+  return <input className={cn(fieldBase, "h-10 px-3.5 text-sm", className)} {...props} />;
 }
 
 export function Textarea({
@@ -90,25 +87,13 @@ export function Textarea({
   ...props
 }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
-    <textarea
-      className={cn(
-        "w-full resize-none rounded-xl border border-white/10 bg-black/25 px-3.5 py-3 text-sm leading-6 text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-[#7c6cff]/70 focus:ring-2 focus:ring-[#7c6cff]/20",
-        className,
-      )}
-      {...props}
-    />
+    <textarea className={cn(fieldBase, "resize-none px-3.5 py-3 text-sm leading-6", className)} {...props} />
   );
 }
 
 export function Select({ className, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
-    <select
-      className={cn(
-        "h-10 w-full appearance-none rounded-xl border border-white/10 bg-black/25 px-3.5 text-sm text-slate-100 outline-none transition focus:border-[#7c6cff]/70",
-        className,
-      )}
-      {...props}
-    />
+    <select className={cn(fieldBase, "h-10 appearance-none px-3.5 text-sm", className)} {...props} />
   );
 }
 
@@ -142,10 +127,10 @@ export function Chip({
     <button
       type="button"
       className={cn(
-        "rounded-lg border px-3 py-1.5 text-[13px] transition",
+        "lift rounded-lg border px-3 py-1.5 text-[13px] transition-all duration-300",
         active
-          ? "border-[#7c6cff]/60 bg-[#7c6cff]/15 text-white"
-          : "border-white/10 bg-white/[0.03] text-slate-400 hover:border-white/20 hover:text-slate-200",
+          ? "border-[#7c6cff]/60 bg-gradient-to-b from-[#7c6cff]/25 to-[#7c6cff]/10 text-white shadow-[0_6px_18px_-10px_rgba(124,108,255,.95)]"
+          : "border-white/10 bg-white/[0.03] text-slate-400 hover:border-[#7c6cff]/35 hover:bg-white/[0.06] hover:text-slate-100",
         className,
       )}
       {...props}
@@ -155,7 +140,88 @@ export function Chip({
   );
 }
 
-/* ----------------------------- Badge ----------------------------- */
+/* --------------------------- Segmented ---------------------------- */
+
+export function Segmented<T extends string>({
+  options,
+  value,
+  onChange,
+  className,
+}: {
+  options: { value: T; label: ReactNode }[];
+  value: T;
+  onChange: (value: T) => void;
+  className?: string;
+}) {
+  const index = Math.max(
+    0,
+    options.findIndex((option) => option.value === value),
+  );
+  return (
+    <div
+      className={cn(
+        "relative grid rounded-xl border border-white/10 bg-black/30 p-1 backdrop-blur-sm",
+        className,
+      )}
+      style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
+    >
+      <span
+        aria-hidden
+        className="absolute inset-y-1 rounded-lg bg-gradient-to-b from-[#7c6cff] to-[#6a56f5] shadow-[0_8px_22px_-10px_rgba(124,108,255,.95)] transition-transform duration-[350ms]"
+        style={{
+          width: `calc((100% - 0.5rem) / ${options.length})`,
+          left: "0.25rem",
+          transform: `translateX(${index * 100}%)`,
+          transitionTimingFunction: "cubic-bezier(.22,.61,.36,1)",
+        }}
+      />
+      {options.map((option) => {
+        const active = option.value === value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onChange(option.value)}
+            className={cn(
+              "relative z-10 flex h-9 items-center justify-center gap-2 rounded-lg text-[13px] font-medium transition-colors duration-300",
+              active ? "text-white" : "text-slate-500 hover:text-slate-300",
+            )}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ------------------------------ Switch ---------------------------- */
+
+export function Switch({
+  checked,
+  onChange,
+  disabled,
+  className,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+  className?: string;
+}) {
+  return (
+    <span className={cn("switch", disabled && "opacity-50", className)}>
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.checked)}
+      />
+      <span className="knob" />
+    </span>
+  );
+}
+
+/* ------------------------------ Badge ----------------------------- */
 
 export function Badge({
   tone = "default",
@@ -168,15 +234,15 @@ export function Badge({
 }) {
   const tones: Record<string, string> = {
     default: "bg-white/[0.06] text-slate-300 border-white/10",
-    success: "bg-emerald-500/10 text-emerald-300 border-emerald-500/20",
-    warning: "bg-amber-500/10 text-amber-300 border-amber-500/20",
-    danger: "bg-rose-500/10 text-rose-300 border-rose-500/20",
-    brand: "bg-[#7c6cff]/12 text-[#b4a8ff] border-[#7c6cff]/25",
+    success: "bg-emerald-500/10 text-emerald-300 border-emerald-500/25",
+    warning: "bg-amber-500/10 text-amber-300 border-amber-500/25",
+    danger: "bg-rose-500/10 text-rose-300 border-rose-500/25",
+    brand: "bg-[#7c6cff]/12 text-[#bdb3ff] border-[#7c6cff]/30",
   };
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium",
+        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium backdrop-blur-sm",
         tones[tone],
         className,
       )}
@@ -188,6 +254,11 @@ export function Badge({
 
 export function Spinner({ className }: { className?: string }) {
   return <Loader2 className={cn("size-4 animate-spin", className)} />;
+}
+
+/** Uiverse 风格的环形渐变加载器，用于「生成中」状态 */
+export function OrbitLoader({ className }: { className?: string }) {
+  return <span className={cn("orbit", className)} aria-label="加载中" role="status" />;
 }
 
 export function EmptyState({
@@ -202,16 +273,20 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-white/10 px-6 py-16 text-center">
-      {icon ? <div className="text-slate-500">{icon}</div> : null}
-      <p className="text-sm font-medium text-slate-300">{title}</p>
-      {description ? <p className="max-w-sm text-xs text-slate-500">{description}</p> : null}
+    <div className="animate-fade-up flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-white/12 bg-white/[0.015] px-6 py-16 text-center">
+      {icon ? (
+        <div className="float-slow grid size-14 place-items-center rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.08] to-transparent text-[#a99cff]">
+          {icon}
+        </div>
+      ) : null}
+      <p className="text-sm font-medium text-slate-200">{title}</p>
+      {description ? <p className="max-w-sm text-xs leading-6 text-slate-500">{description}</p> : null}
       {action}
     </div>
   );
 }
 
-/* ----------------------------- Modal ----------------------------- */
+/* ------------------------------ Modal ----------------------------- */
 
 export function Modal({
   open,
@@ -247,19 +322,20 @@ export function Modal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        className="animate-backdrop-in absolute inset-0 bg-black/75 backdrop-blur-[3px]"
         onClick={onClose}
         aria-hidden
       />
       <div
         className={cn(
-          "relative z-10 max-h-[90vh] w-full overflow-auto rounded-2xl border border-white/10 bg-[#0f141d] p-6 shadow-2xl",
+          "animate-pop-in panel relative z-10 max-h-[90vh] w-full overflow-auto p-6",
           wide ? "max-w-4xl" : "max-w-lg",
         )}
       >
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 rounded-lg p-1 text-slate-400 transition hover:bg-white/5 hover:text-white"
+          className="tip absolute right-4 top-4 rounded-lg p-1 text-slate-400 transition hover:bg-white/5 hover:text-white"
+          data-tip="关闭 (Esc)"
           aria-label="关闭"
         >
           <X className="size-4" />
@@ -273,7 +349,7 @@ export function Modal({
   );
 }
 
-/* ----------------------------- Toast ----------------------------- */
+/* ------------------------------ Toast ----------------------------- */
 
 type ToastItem = { id: number; message: string; tone: "info" | "success" | "error" };
 type ToastContextValue = {
@@ -291,7 +367,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setItems((prev) => [...prev, { id, message, tone }]);
     setTimeout(() => {
       setItems((prev) => prev.filter((item) => item.id !== id));
-    }, 3800);
+    }, 4200);
   }, []);
 
   const value = useMemo(() => ({ toast }), [toast]);
@@ -304,14 +380,25 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div
             key={item.id}
             className={cn(
-              "pointer-events-auto flex items-start gap-2 rounded-xl border px-4 py-3 text-sm shadow-xl backdrop-blur",
-              item.tone === "success" && "border-emerald-500/25 bg-emerald-950/80 text-emerald-100",
-              item.tone === "error" && "border-rose-500/25 bg-rose-950/80 text-rose-100",
-              item.tone === "info" && "border-white/10 bg-[#151b27]/95 text-slate-100",
+              "animate-toast-in pointer-events-auto relative flex items-start gap-2 overflow-hidden rounded-xl border px-4 py-3 text-sm shadow-2xl backdrop-blur-md",
+              item.tone === "success" &&
+                "border-emerald-500/30 bg-emerald-950/85 text-emerald-100",
+              item.tone === "error" && "border-rose-500/30 bg-rose-950/85 text-rose-100",
+              item.tone === "info" && "border-white/12 bg-[#151b27]/95 text-slate-100",
             )}
           >
             {item.tone === "success" ? <Check className="mt-0.5 size-4 shrink-0" /> : null}
             <span className="leading-5">{item.message}</span>
+            <span
+              aria-hidden
+              className={cn(
+                "absolute inset-x-0 bottom-0 h-0.5 origin-left",
+                item.tone === "success" && "bg-emerald-400/70",
+                item.tone === "error" && "bg-rose-400/70",
+                item.tone === "info" && "bg-[#7c6cff]/70",
+              )}
+              style={{ animation: "toast-bar 4.2s linear forwards" }}
+            />
           </div>
         ))}
       </div>

@@ -206,7 +206,7 @@ export default function PromptsPage() {
       {loading ? (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 6 }).map((_, index) => (
-            <div key={index} className="h-40 animate-pulse rounded-2xl bg-white/[0.03]" />
+            <div key={index} className="skeleton h-40 rounded-2xl border border-white/5" />
           ))}
         </div>
       ) : items.length === 0 ? (

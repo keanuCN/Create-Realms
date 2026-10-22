@@ -12,7 +12,7 @@ import {
   RefreshCw,
   Trash2,
 } from "lucide-react";
-import { Badge, Button, cn, useToast } from "@/components/ui";
+import { Badge, Button, OrbitLoader, cn, useToast } from "@/components/ui";
 import { api } from "@/lib/client";
 import type { AssetWithUser } from "@/lib/types";
 
@@ -34,10 +34,10 @@ export function statusLabel(status: AssetWithUser["status"]) {
 export function AssetThumb({ asset }: { asset: AssetWithUser }) {
   if (asset.status === "pending" || asset.status === "running") {
     return (
-      <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-[#0c1119]">
+      <div className="relative flex h-full w-full flex-col items-center justify-center gap-3 bg-[#0b1018]">
         <div className="shimmer absolute inset-0" />
-        <div className="relative grid size-10 place-items-center rounded-full border border-white/10 bg-black/40">
-          <Loader2 className="size-4 animate-spin text-[#a99cff]" />
+        <div className="pulse-ring relative grid size-12 place-items-center rounded-full border border-white/10 bg-black/40">
+          <OrbitLoader />
         </div>
         <p className="relative text-xs text-slate-400">{statusLabel(asset.status)}…</p>
       </div>
@@ -46,7 +46,7 @@ export function AssetThumb({ asset }: { asset: AssetWithUser }) {
 
   if (asset.status === "failed" || asset.status === "cancelled") {
     return (
-      <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-[#120d10] px-5 text-center">
+      <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-b from-[#170e13] to-[#120d10] px-5 text-center">
         <AlertTriangle className="size-5 text-rose-400/80" />
         <p className="line-clamp-2 text-xs leading-5 text-rose-200/80">
           {asset.errorMessage || statusLabel(asset.status)}
@@ -56,7 +56,7 @@ export function AssetThumb({ asset }: { asset: AssetWithUser }) {
   }
 
   if (!asset.mediaUrl) {
-    return <div className="h-full w-full bg-[#0c1119]" />;
+    return <div className="skeleton h-full w-full" />;
   }
 
   if (asset.kind === "video") {
@@ -67,10 +67,10 @@ export function AssetThumb({ asset }: { asset: AssetWithUser }) {
           muted
           playsInline
           preload="metadata"
-          className="h-full w-full object-cover"
+          className="zoom-media h-full w-full object-cover"
         />
-        <div className="pointer-events-none absolute inset-0 grid place-items-center bg-black/20 opacity-100 transition group-hover/media:opacity-0">
-          <div className="grid size-10 place-items-center rounded-full bg-black/50 backdrop-blur">
+        <div className="pointer-events-none absolute inset-0 grid place-items-center bg-black/25 opacity-100 transition group-hover/media:opacity-0">
+          <div className="grid size-11 place-items-center rounded-full bg-black/50 backdrop-blur transition group-hover/media:scale-110">
             <Play className="ml-0.5 size-4 fill-white text-white" />
           </div>
         </div>
@@ -84,7 +84,7 @@ export function AssetThumb({ asset }: { asset: AssetWithUser }) {
       src={asset.mediaUrl}
       alt={asset.prompt}
       loading="lazy"
-      className="h-full w-full object-cover"
+      className="zoom-media h-full w-full object-cover"
     />
   );
 }
@@ -174,7 +174,7 @@ export function AssetCard({
   return (
     <div
       className={cn(
-        "group relative overflow-hidden rounded-2xl border border-white/[0.07] bg-[#0c1119] transition hover:border-white/20",
+        "card-hover glow-border group relative overflow-hidden rounded-2xl border border-white/[0.07] bg-[#0b1018]",
         onOpen && "cursor-pointer",
       )}
       onClick={() => onOpen?.(asset)}
@@ -191,10 +191,10 @@ export function AssetCard({
               onClick={toggleFavorite}
               disabled={busy}
               className={cn(
-                "grid size-7 place-items-center rounded-lg bg-black/50 backdrop-blur transition hover:bg-black/70",
+                "tip grid size-7 place-items-center rounded-lg bg-black/55 backdrop-blur transition hover:scale-110 hover:bg-black/75",
                 asset.isFavorite ? "text-rose-400" : "text-slate-300",
               )}
-              title={asset.isFavorite ? "取消收藏" : "收藏"}
+              data-tip={asset.isFavorite ? "取消收藏" : "收藏"}
             >
               <Heart className={cn("size-3.5", asset.isFavorite && "fill-rose-400")} />
             </button>
@@ -202,15 +202,15 @@ export function AssetCard({
               <>
                 <button
                   onClick={download}
-                  className="grid size-7 place-items-center rounded-lg bg-black/50 text-slate-300 backdrop-blur transition hover:bg-black/70"
-                  title="下载"
+                  className="tip grid size-7 place-items-center rounded-lg bg-black/55 text-slate-300 backdrop-blur transition hover:scale-110 hover:bg-black/75"
+                  data-tip="下载"
                 >
                   <Download className="size-3.5" />
                 </button>
                 <button
                   onClick={share}
-                  className="grid size-7 place-items-center rounded-lg bg-black/50 text-slate-300 backdrop-blur transition hover:bg-black/70"
-                  title="分享"
+                  className="tip grid size-7 place-items-center rounded-lg bg-black/55 text-slate-300 backdrop-blur transition hover:scale-110 hover:bg-black/75"
+                  data-tip="复制分享链接"
                 >
                   <Link2 className="size-3.5" />
                 </button>
@@ -220,8 +220,8 @@ export function AssetCard({
               <button
                 onClick={retry}
                 disabled={busy}
-                className="grid size-7 place-items-center rounded-lg bg-black/50 text-slate-300 backdrop-blur transition hover:bg-black/70"
-                title="重试"
+                className="tip grid size-7 place-items-center rounded-lg bg-black/55 text-slate-300 backdrop-blur transition hover:scale-110 hover:bg-black/75"
+                data-tip="重试"
               >
                 <RefreshCw className="size-3.5" />
               </button>
@@ -229,8 +229,8 @@ export function AssetCard({
             <button
               onClick={remove}
               disabled={busy}
-              className="grid size-7 place-items-center rounded-lg bg-black/50 text-slate-300 backdrop-blur transition hover:bg-rose-500/80 hover:text-white"
-              title="删除"
+              className="tip grid size-7 place-items-center rounded-lg bg-black/55 text-slate-300 backdrop-blur transition hover:scale-110 hover:bg-rose-500/85 hover:text-white"
+              data-tip="删除"
             >
               <Trash2 className="size-3.5" />
             </button>
@@ -238,8 +238,8 @@ export function AssetCard({
         </div>
       </div>
 
-      <div className="space-y-1.5 p-3">
-        <p className="line-clamp-2 min-h-[2.5rem] text-[12.5px] leading-5 text-slate-300">
+      <div className="space-y-1.5 border-t border-white/[0.05] bg-gradient-to-b from-white/[0.025] to-transparent p-3">
+        <p className="line-clamp-2 min-h-[2.5rem] text-[12.5px] leading-5 text-slate-200">
           {asset.prompt || "（无提示词）"}
         </p>
         <div className="flex items-center justify-between text-[11px] text-slate-500">
@@ -285,8 +285,11 @@ export function AssetViewer({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 grid max-h-[92vh] w-full max-w-5xl grid-cols-1 overflow-auto rounded-2xl border border-white/10 bg-[#0d121b] shadow-2xl lg:grid-cols-[1.4fr_1fr]">
+      <div
+        className="animate-backdrop-in absolute inset-0 bg-black/80 backdrop-blur-[3px]"
+        onClick={onClose}
+      />
+      <div className="animate-pop-in panel relative z-10 grid max-h-[92vh] w-full max-w-5xl grid-cols-1 overflow-auto shadow-2xl lg:grid-cols-[1.4fr_1fr]">
         <div className="flex min-h-[280px] items-center justify-center bg-black">
           {asset.status === "succeeded" && asset.mediaUrl ? (
             asset.kind === "video" ? (

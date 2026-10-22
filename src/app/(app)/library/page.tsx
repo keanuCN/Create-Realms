@@ -164,7 +164,7 @@ export default function LibraryPage() {
           {Array.from({ length: 10 }).map((_, index) => (
             <div
               key={index}
-              className="aspect-square animate-pulse rounded-2xl border border-white/5 bg-white/[0.03]"
+              className="skeleton aspect-square rounded-2xl border border-white/5"
             />
           ))}
         </div>

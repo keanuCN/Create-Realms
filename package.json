@@ -11,7 +11,8 @@
     "worker": "tsx src/worker/index.ts",
     "db:migrate": "tsx scripts/migrate.ts",
     "reset-password": "tsx scripts/reset-password.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check:utf8": "node scripts/check-utf8.mjs src"
   },
   "dependencies": {
     "clsx": "^2.1.1",

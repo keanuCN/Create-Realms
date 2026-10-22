@@ -13,7 +13,7 @@ import {
   ShieldCheck,
   Trash2,
 } from "lucide-react";
-import { Badge, Button, Input, cn, useToast } from "@/components/ui";
+import { Badge, Button, Input, Switch, cn, useToast } from "@/components/ui";
 import { api } from "@/lib/client";
 
 interface CredentialView {
@@ -193,7 +193,7 @@ export default function ProviderSettings() {
       {loading ? (
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, index) => (
-            <div key={index} className="h-40 animate-pulse rounded-2xl bg-white/[0.03]" />
+            <div key={index} className="skeleton h-40 rounded-2xl border border-white/5" />
           ))}
         </div>
       ) : (
@@ -304,20 +304,18 @@ export default function ProviderSettings() {
                 </div>
 
                 <div className="mt-4 flex flex-wrap items-center gap-3">
-                  <label className="flex cursor-pointer items-center gap-2 text-[12px] text-slate-400">
-                    <input
-                      type="checkbox"
+                  <div className="flex items-center gap-2">
+                    <Switch
                       checked={draft.enabled}
-                      onChange={(event) =>
+                      onChange={(next) =>
                         setDrafts((prev) => ({
                           ...prev,
-                          [item.id]: { ...prev[item.id], enabled: event.target.checked },
+                          [item.id]: { ...prev[item.id], enabled: next },
                         }))
                       }
-                      className="size-4 accent-[#7c6cff]"
                     />
-                    启用该供应商
-                  </label>
+                    <span className="text-[12px] text-slate-400">启用该供应商</span>
+                  </div>
 
                   <div className="ml-auto flex flex-wrap items-center gap-2">
                     <Button

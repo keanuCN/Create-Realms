@@ -2,6 +2,8 @@
 
 团队内部使用的 AI 图片 / 视频生成工作台。部署在一台内网机器上，同事用浏览器访问，作品自动归档、可收藏、可分享、提示词可复用。
 
+界面参考 [Uiverse](https://uiverse.io/) 的组件风格做了统一升级：玻璃拟态面板、渐变描边、按钮扫光、卡片悬浮放大、滑动的分段控件与开关、环形渐变加载器，并遵循 `prefers-reduced-motion` 在系统设置「减少动态效果」时自动降级。
+
 - **视频**：MiniMax H3 Max / H3、即梦 Seedance 2.5 / 2.0、可灵 3.0 / 2.6、PixVerse V6 Max、Vidu Q3 Pro、通义万相 2.7 / HappyHorse 1.1；全部支持文生视频与图生视频（首帧 / 首尾帧按各家能力）
 - **图片**：MiniMax image-01、豆包 Seedream 5.0、通义万相 2.6，支持多张批量与多种比例
 - **模型设置**：各家 API Key / 凭据可视化填写（加密入库、界面只显示掩码、免重启生效、免费连通性测试）
@@ -196,6 +198,7 @@ Worker（独立进程，SKIP LOCKED 抢任务）
 | `src/lib/schema.sql` | 表结构（幂等，启动自动执行） |
 | `scripts/e2e-smoke.mjs` | 端到端冒烟测试（20 项） |
 | `scripts/provider-e2e.mjs` | 模型设置页测试（17 项） |
+| `scripts/check-utf8.mjs` | 源码 UTF-8 校验（`pnpm check:utf8`，改文案后建议跑一次） |
 
 ### 加一个新模型 / 新供应商
 
