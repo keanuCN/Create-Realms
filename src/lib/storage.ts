@@ -1,5 +1,9 @@
 import fs from "node:fs/promises";
+import { createWriteStream } from "node:fs";
 import path from "node:path";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
+import type { ReadableStream as NodeReadableStream } from "node:stream/web";
 import { env } from "./env";
 
 const ROOT = env.mediaDir;
@@ -23,6 +27,25 @@ export async function saveMedia(key: string, data: Buffer | Uint8Array) {
   await fs.mkdir(path.dirname(full), { recursive: true });
   await fs.writeFile(full, data);
   return key;
+}
+
+export async function saveMediaStream(key: string, data: ReadableStream<Uint8Array>) {
+  const full = mediaPath(key);
+  await fs.mkdir(path.dirname(full), { recursive: true });
+  try {
+    await pipeline(
+      Readable.fromWeb(data as unknown as NodeReadableStream<Uint8Array>),
+      createWriteStream(full, { flags: "wx" }),
+    );
+  } catch (error) {
+    await fs.rm(full, { force: true }).catch(() => {});
+    throw error;
+  }
+  return key;
+}
+
+export async function removeMedia(key: string) {
+  await fs.rm(mediaPath(key), { force: true });
 }
 
 export async function readMedia(key: string): Promise<Buffer> {

@@ -15,6 +15,9 @@ export const PROVIDER_COLORS: Record<string, ProviderColor> = {
   dashscope: { from: "#ff6b6b", to: "#e0413f", soft: "rgba(255,107,107,0.16)" },
   openai: { from: "#10a37f", to: "#0b7a5f", soft: "rgba(16,163,127,0.16)" },
   google: { from: "#4285f4", to: "#2b6cd4", soft: "rgba(66,133,244,0.16)" },
+  "google-vertex": { from: "#34a853", to: "#188038", soft: "rgba(52,168,83,0.16)" },
+  xai: { from: "#a3b6ff", to: "#667eea", soft: "rgba(130,153,255,0.16)" },
+  "tencent-hy": { from: "#59a5ff", to: "#2878db", soft: "rgba(65,145,245,0.16)" },
   runway: { from: "#b06bff", to: "#8b3ff5", soft: "rgba(176,107,255,0.16)" },
 };
 

@@ -87,6 +87,10 @@ export default function Studio({ displayName }: { displayName: string }) {
   const model = getModel(modelId) ?? modelsFor(tab, provider)[0];
   const modelOptions = modelsFor(tab, provider);
   const providerOptions = providersForModality(tab);
+  const resolutionOptions =
+    model.id === "grok-imagine-video-1.5" && inputMode === "reference"
+      ? (model.resolutions ?? []).filter((item) => item !== "1080p")
+      : model.resolutions ?? [];
   const currentReady = providerReady[provider] !== false;
 
   useEffect(() => {
@@ -302,11 +306,15 @@ export default function Studio({ displayName }: { displayName: string }) {
   }
   const withFrames = Boolean(firstFrame || lastFrame);
   const ratios = model.ratios ?? ["16:9"];
-  const durationChoices = durationOptions(model);
+  const durationChoices =
+    model.id === "veo-3.1-generate-001" && references.length
+      ? [8]
+      : durationOptions(model);
   const cost = estimateCost(model, {
     resolution,
     duration: tab === "video" ? duration : undefined,
     count: tab === "video" ? videoCount : count,
+    audio: tab === "video" ? audioOn : undefined,
   });
 
   /** 操作条：宽屏钉在表单底部，窄屏浮动在视口底部，保证提交按钮永远可见 */
@@ -624,6 +632,13 @@ export default function Studio({ displayName }: { displayName: string }) {
                       value={inputMode}
                       onChange={(next) => {
                         setInputMode(next);
+                        if (
+                          next === "reference" &&
+                          model.id === "grok-imagine-video-1.5" &&
+                          resolution === "1080p"
+                        ) {
+                          setResolution("720p");
+                        }
                         if (next === "text") {
                           setFirstFrame(null);
                           setLastFrame(null);
@@ -665,9 +680,18 @@ export default function Studio({ displayName }: { displayName: string }) {
                     ) : inputMode === "reference" ? (
                       <MultiImageDrop
                         label="参考图"
-                        hint={`主体 / 风格参考，最多 ${model.maxReferenceImages ?? 4} 张`}
+                        hint={
+                          model.id === "veo-3.1-generate-001"
+                            ? "主体参考最多 3 张；该型号使用参考图时固定生成 8 秒"
+                            : `主体 / 风格参考，最多 ${model.maxReferenceImages ?? 4} 张`
+                        }
                         values={references}
-                        onChange={setReferences}
+                        onChange={(value) => {
+                          setReferences(value);
+                          if (model.id === "veo-3.1-generate-001" && value.length) {
+                            setDuration(8);
+                          }
+                        }}
                         max={model.maxReferenceImages ?? 4}
                       />
                     ) : null}
@@ -676,7 +700,7 @@ export default function Studio({ displayName }: { displayName: string }) {
 
                 <Field label="分辨率">
                   <div className="flex flex-wrap gap-2">
-                    {(model.resolutions ?? []).map((item) => (
+                    {resolutionOptions.map((item) => (
                       <Chip
                         key={item}
                         active={resolution === item}

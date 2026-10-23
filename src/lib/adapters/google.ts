@@ -1,4 +1,5 @@
 import { bearer, rawRequest, trimBase } from "./http";
+import { friendlyError } from "../errors";
 import {
   ProviderError,
   type AdapterContext,
@@ -9,7 +10,7 @@ import {
 } from "./types";
 
 interface GoogleErrorBody {
-  error?: { message?: string; status?: string; code?: number };
+  error?: { message?: string; status?: string; code?: string | number };
 }
 
 interface GoogleContent {
@@ -42,7 +43,10 @@ function raiseGoogleError(status: number, body: GoogleErrorBody | null): never {
     : freeTierZeroQuota
     ? "图片未生成：当前 Google API Key 所属项目的免费层没有该 Gemini 图片模型的调用额度（每日限额为 0）。请管理员在 Google AI Studio 为这个项目启用计费并确认付费层已生效后重试；也可以切换到其他已配置的图片模型。查看项目限额：https://ai.dev/rate-limit"
     : providerMessage || `Google Gemini 接口错误 (HTTP ${status})`;
-  throw new ProviderError(message, body?.error?.status || String(status), status);
+  const code = typeof body?.error?.code === "string"
+    ? body.error.code
+    : body?.error?.status || String(status);
+  throw new ProviderError(friendlyError(code, message), code, status);
 }
 
 function outputParts(data: GoogleInteraction, type: "image" | "video"): GoogleContent[] {

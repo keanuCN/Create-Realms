@@ -91,6 +91,10 @@ export async function POST(req: Request) {
         if (upload) references.push(upload);
       }
 
+      if (model.id === "grok-imagine-video-1.5" && references.length && resolution === "1080p") {
+        throw new ApiError("Grok Imagine 使用参考图时最高支持 720p，请调低分辨率后重试", 400);
+      }
+
       const hasFrames = Boolean(first || last);
       if (hasFrames || references.length) {
         // 首尾帧与参考图是两种互斥的生成方式

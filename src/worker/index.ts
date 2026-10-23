@@ -35,6 +35,10 @@ const RETRYABLE = new Set([
   "QuotaExceeded",
   "RequestTimeout",
   "InternalServiceFailure",
+  "1302",
+  "1303",
+  "5001",
+  "5002",
 ]);
 
 let running = true;

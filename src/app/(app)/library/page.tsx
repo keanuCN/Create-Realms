@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Heart, Images, LayoutGrid, Search, Sparkles } from "lucide-react";
+import { Heart, Images, LayoutGrid, Search, Sparkles, Upload } from "lucide-react";
 import { AssetCard, AssetViewer } from "@/components/asset-card";
 import { PageHeader } from "@/components/page-header";
-import { Button, Chip, EmptyState, Input, cn, useToast } from "@/components/ui";
+import { Button, Chip, EmptyState, Input, Modal, cn, useToast } from "@/components/ui";
 import { api } from "@/lib/client";
 import type { AssetWithUser } from "@/lib/types";
 
@@ -21,6 +21,12 @@ export default function LibraryPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [viewer, setViewer] = useState<AssetWithUser | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadTitle, setUploadTitle] = useState("");
+  const [sourceName, setSourceName] = useState("");
+  const [sourceUrl, setSourceUrl] = useState("");
 
   useEffect(() => {
     api<{ user: { id: string } | null }>("/api/auth/me")
@@ -96,6 +102,36 @@ export default function LibraryPage() {
     }
   }
 
+  async function uploadVideo() {
+    if (!uploadFile || !sourceName.trim()) return;
+    const form = new FormData();
+    form.append("file", uploadFile);
+    form.append("title", uploadTitle.trim());
+    form.append("sourceName", sourceName.trim());
+    form.append("sourceUrl", sourceUrl.trim());
+    setUploading(true);
+    try {
+      await api<{ id: string }>("/api/assets/upload", { method: "POST", body: form });
+      toast("视频已上传并加入团队作品库", "success");
+      setUploadOpen(false);
+      setUploadFile(null);
+      setUploadTitle("");
+      setSourceName("");
+      setSourceUrl("");
+      try {
+        const data = await fetchPage(0);
+        setItems(data.items);
+        setTotal(data.total);
+      } catch {
+        toast("视频已上传，请刷新页面查看作品", "info");
+      }
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "视频上传失败", "error");
+    } finally {
+      setUploading(false);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-[1440px]">
       <PageHeader
@@ -107,6 +143,12 @@ export default function LibraryPage() {
           </span>
         }
         description="所有生成结果都会自动留档，支持收藏、下载和分享给同事。"
+        actions={
+          <Button onClick={() => setUploadOpen(true)}>
+            <Upload className="size-4" />
+            上传视频
+          </Button>
+        }
       />
 
       <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-3 lg:flex-row lg:items-center">
@@ -224,6 +266,100 @@ export default function LibraryPage() {
           </>
         )}
       </div>
+
+      <Modal
+        open={uploadOpen}
+        onClose={() => {
+          if (!uploading) setUploadOpen(false);
+        }}
+        title="上传视频到团队作品库"
+        description="支持 MP4、MOV、WebM，单个文件最大 300MB。上传后团队成员都可以查看和下载。"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setUploadOpen(false)} disabled={uploading}>
+              取消
+            </Button>
+            <Button
+              onClick={uploadVideo}
+              loading={uploading}
+              disabled={!uploadFile || !sourceName.trim()}
+            >
+              <Upload className="size-4" />
+              上传并分享
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/15 bg-white/[0.025] px-4 py-5 text-center transition hover:border-[#7c6cff]/50 hover:bg-[#7c6cff]/[0.06]">
+            <input
+              type="file"
+              accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm"
+              className="sr-only"
+              onChange={(event) => {
+                const file = event.target.files?.[0] ?? null;
+                if (file && file.size > 300 * 1024 * 1024) {
+                  toast("视频不能超过 300MB", "error");
+                  event.target.value = "";
+                  setUploadFile(null);
+                  return;
+                }
+                setUploadFile(file);
+                event.target.value = "";
+              }}
+            />
+            <Upload className="size-5 text-[#bdb3ff]" />
+            <span className="max-w-full truncate text-sm text-slate-200">
+              {uploadFile ? uploadFile.name : "点击选择视频文件"}
+            </span>
+            <span className="text-[11px] text-slate-500">
+              {uploadFile
+                ? `${(uploadFile.size / 1024 / 1024).toFixed(1)} MB`
+                : "MP4 / MOV / WebM · 最大 300MB"}
+            </span>
+          </label>
+
+          <div>
+            <label htmlFor="library-upload-title" className="mb-1.5 block text-[13px] font-medium text-slate-300">
+              作品标题 <span className="font-normal text-slate-500">（选填）</span>
+            </label>
+            <Input
+              id="library-upload-title"
+              value={uploadTitle}
+              onChange={(event) => setUploadTitle(event.target.value)}
+              maxLength={120}
+              placeholder="默认使用视频文件名"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="library-upload-source" className="mb-1.5 block text-[13px] font-medium text-slate-300">
+              视频来源 <span className="text-rose-300">*</span>
+            </label>
+            <Input
+              id="library-upload-source"
+              value={sourceName}
+              onChange={(event) => setSourceName(event.target.value)}
+              maxLength={100}
+              placeholder="例如：客户提供、B站、项目宣传片"
+              required
+            />
+          </div>
+
+          <div>
+            <label htmlFor="library-upload-source-url" className="mb-1.5 block text-[13px] font-medium text-slate-300">
+              来源链接 <span className="font-normal text-slate-500">（选填）</span>
+            </label>
+            <Input
+              id="library-upload-source-url"
+              type="url"
+              value={sourceUrl}
+              onChange={(event) => setSourceUrl(event.target.value)}
+              placeholder="https://..."
+            />
+          </div>
+        </div>
+      </Modal>
 
       <AssetViewer
         asset={viewer}

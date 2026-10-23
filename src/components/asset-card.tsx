@@ -157,9 +157,8 @@ export function AssetCard({
     if (!asset.mediaUrl) return;
     const link = document.createElement("a");
     link.href = asset.mediaUrl;
-    link.download = `${asset.title || asset.kind}-${asset.id.slice(0, 8)}.${
-      asset.kind === "video" ? "mp4" : "png"
-    }`;
+    const extension = asset.storageKey?.split(".").pop() || (asset.kind === "video" ? "mp4" : "png");
+    link.download = `${asset.title || asset.kind}-${asset.id.slice(0, 8)}.${extension}`;
     link.click();
   }
 
@@ -277,11 +276,18 @@ export function AssetCard({
 
       <div className="space-y-1.5 border-t border-white/[0.05] bg-gradient-to-b from-white/[0.025] to-transparent p-3">
         <p className="line-clamp-2 min-h-[2.5rem] text-[12.5px] leading-5 text-slate-200">
-          {asset.prompt || "（无提示词）"}
+          {asset.provider === "upload" && asset.title
+            ? asset.title
+            : asset.prompt || "（无提示词）"}
         </p>
+        {typeof asset.params.sourceName === "string" ? (
+          <p className="truncate text-[11px] text-slate-400">
+            <span className="text-slate-500">来源：</span>{asset.params.sourceName}
+          </p>
+        ) : null}
         <div className="flex items-center justify-between text-[11px] text-slate-500">
           <span className="truncate">
-            {asset.model}
+            {asset.provider === "upload" ? "外部上传" : asset.model}
             {asset.resolution ? ` · ${asset.resolution}` : ""}
             {asset.durationSeconds ? ` · ${asset.durationSeconds}s` : ""}
           </span>
@@ -317,12 +323,15 @@ export function AssetViewer({
         resolution: asset.resolution ?? undefined,
         duration: asset.durationSeconds ?? undefined,
         count: 1,
+        audio: typeof asset.params.audio === "boolean" ? asset.params.audio : model.audioDefault,
       })
     : null;
 
   const shareUrl = asset.shareToken
     ? `${typeof location !== "undefined" ? location.origin : ""}/s/${asset.shareToken}`
     : null;
+  const sourceName = typeof asset.params.sourceName === "string" ? asset.params.sourceName : null;
+  const sourceUrl = typeof asset.params.sourceUrl === "string" ? asset.params.sourceUrl : null;
 
   async function copyPrompt() {
     await navigator.clipboard.writeText(asset!.prompt);
@@ -375,11 +384,16 @@ export function AssetViewer({
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
-                <Badge tone="brand">{asset.model}</Badge>
+                <Badge tone="brand">
+                  {asset.provider === "upload" ? "外部上传视频" : asset.model}
+                </Badge>
                 <Badge tone={asset.status === "failed" ? "danger" : "success"}>
                   {statusLabel(asset.status)}
                 </Badge>
               </div>
+              {asset.provider === "upload" && asset.title ? (
+                <p className="mt-2 text-sm font-medium text-slate-200">{asset.title}</p>
+              ) : null}
               <p className="mt-2 text-xs text-slate-500">
                 {new Date(asset.createdAt).toLocaleString("zh-CN")} · {asset.authorName}
               </p>
@@ -403,6 +417,24 @@ export function AssetViewer({
               {asset.prompt}
             </p>
           </div>
+
+          {sourceName ? (
+            <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
+              <p className="text-[11px] text-slate-500">视频来源</p>
+              <p className="mt-1 break-all text-[13px] text-slate-200">{sourceName}</p>
+              {sourceUrl ? (
+                <a
+                  href={sourceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-1 inline-flex max-w-full items-center gap-1 truncate text-xs text-[#bdb3ff] hover:text-white"
+                >
+                  <Link2 className="size-3 shrink-0" />
+                  <span className="truncate">{sourceUrl}</span>
+                </a>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="grid grid-cols-2 gap-2 text-[11px]">
             {asset.resolution ? (

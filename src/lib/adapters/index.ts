@@ -6,6 +6,9 @@ import { openaiAdapter } from "./openai";
 import { pixverseAdapter } from "./pixverse";
 import { viduAdapter } from "./vidu";
 import { googleAdapter } from "./google";
+import { googleVertexAdapter } from "./google-vertex";
+import { xaiAdapter } from "./xai";
+import { tencentHyAdapter } from "./tencent-hy";
 import type { ProviderAdapter } from "./types";
 
 const registry = new Map<string, ProviderAdapter>(
@@ -18,6 +21,9 @@ const registry = new Map<string, ProviderAdapter>(
     dashscopeAdapter,
     openaiAdapter,
     googleAdapter,
+    googleVertexAdapter,
+    xaiAdapter,
+    tencentHyAdapter,
   ].map((adapter) => [adapter.id, adapter]),
 );
 

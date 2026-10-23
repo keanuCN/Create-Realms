@@ -9,6 +9,7 @@ export interface CredentialField {
   label: string;
   placeholder: string;
   hint?: string;
+  required?: boolean;
 }
 
 export interface ProviderSpec {
@@ -106,6 +107,49 @@ export const PROVIDERS: ProviderSpec[] = [
     docsUrl: "https://aistudio.google.com/apikey",
     note: "Gemini API Key；Imagen 已停用，Veo 3.1 预览 API 于 2026-10-22 到退役日期",
     credentialFields: SINGLE_KEY("AIza..."),
+  },
+  {
+    id: "google-vertex",
+    label: "Google Cloud Veo",
+    vendor: "Google Cloud",
+    capability: "视频（Veo 3.1 / 3.1 Fast / 3.1 Lite）",
+    defaultBase: "https://us-central1-aiplatform.googleapis.com/v1",
+    docsUrl: "https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/veo/3-1-generate?hl=zh-CN",
+    note: "需在 Google Cloud 启用 Agent Platform API 和计费，为服务账号授予 Vertex AI User；当前使用 us-central1。生成结果会下载并存入本地作品库。",
+    credentialFields: [
+      {
+        key: "projectId",
+        label: "Google Cloud 项目 ID",
+        placeholder: "my-google-cloud-project",
+        hint: "在 Google Cloud 项目设置中查看，不是项目名称。",
+      },
+      {
+        key: "serviceAccountJson",
+        label: "服务账号 JSON Key",
+        placeholder: "粘贴下载的服务账号 JSON 文件全部内容",
+        hint: "创建服务账号并授予 Vertex AI User 后下载 JSON Key。凭据会按个人加密保存。若 Google 返回 GCS 文件，还需授予该账号读取对应对象的权限。",
+      },
+    ],
+  },
+  {
+    id: "xai",
+    label: "xAI Grok Imagine",
+    vendor: "xAI",
+    capability: "视频（Grok Imagine Video 1.5，原生音画生成）",
+    defaultBase: "https://api.x.ai/v1",
+    docsUrl: "https://console.x.ai/",
+    note: "服务端需能访问 api.x.ai；参考图模式最高 720p。",
+    credentialFields: SINGLE_KEY("填入 xAI API Key"),
+  },
+  {
+    id: "tencent-hy",
+    label: "腾讯混元 Hy Video",
+    vendor: "腾讯云 TokenHub",
+    capability: "视频（Hy Video 1.5 文生 / 图生）",
+    defaultBase: "https://tokenhub-intl.tencentcloudmaas.com",
+    docsUrl: "https://intl.cloud.tencent.com/zh/document/product/1300/83716",
+    note: "默认新加坡站；API Key 与 TokenHub 地域需匹配，广州站请由管理员改为 https://tokenhub.tencentcloudmaas.com。还需开通 Hy-Video-1.5 后付费；当前固定 5 秒 / 720p。",
+    credentialFields: SINGLE_KEY("填入腾讯云 TokenHub API Key"),
   },
   {
     id: "runway",

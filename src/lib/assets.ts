@@ -1,5 +1,6 @@
 import { sql, jsonb } from "./db";
 import { mediaUrl } from "./storage";
+import { friendlyError } from "./errors";
 import type { Asset, AssetKind, AssetStatus, AssetWithUser } from "./types";
 
 interface AssetRow {
@@ -52,7 +53,7 @@ export function mapAsset(row: AssetRow): Asset {
     posterKey: row.poster_key,
     remoteUrl: row.remote_url,
     errorCode: row.error_code,
-    errorMessage: row.error_message,
+    errorMessage: row.error_message ? friendlyError(row.error_code, row.error_message) : null,
     durationSeconds: row.duration_seconds,
     resolution: row.resolution,
     aspectRatio: row.aspect_ratio,

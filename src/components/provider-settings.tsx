@@ -197,7 +197,7 @@ export default function ProviderSettings({ isAdmin = false }: { isAdmin?: boolea
       <div className="mb-5 flex items-start gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] p-4">
         <ShieldCheck className="mt-0.5 size-4 shrink-0 text-emerald-300" />
         <div className="text-[12px] leading-6 text-emerald-100/80">
-          你的凭据与其他成员隔离，并使用 AES-256-GCM 加密后存入数据库；页面只展示掩码（如
+          你的供应商凭据与其他成员隔离，并使用 AES-256-GCM 加密后存入数据库；页面只展示掩码（如
           <span className="mx-1 font-mono">sk-cp-••••••••abcd</span>），任何人都无法在界面上看到完整内容。
           「测试连接」调用的是各家的免费查询接口，不会产生生成费用。
         </div>
@@ -321,6 +321,9 @@ export default function ProviderSettings({ isAdmin = false }: { isAdmin?: boolea
                             ? `当前：${field.masked}（留空表示不修改）`
                             : "尚未配置。填完可直接点「测试连接」验证，确认无误再点「保存」"}
                         </p>
+                        {field.hint ? (
+                          <p className="text-[11px] leading-5 text-slate-500">{field.hint}</p>
+                        ) : null}
                       </div>
                     ))}
                   </div>

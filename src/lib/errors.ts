@@ -11,6 +11,12 @@ const MESSAGES: Record<string, string> = {
 };
 
 export function friendlyError(code?: string | null, fallback?: string | null) {
+  if (
+    /^(safety|image_safety|prohibited_content|blocklist|jailbreak)$/i.test(code ?? "") ||
+    /^\s*Input blocked:/i.test(fallback ?? "")
+  ) {
+    return "本次输入被模型供应商的内容规则拦截，未能生成。请检查并调整提示词或参考图片后重新提交。该提示未说明具体触发内容，仅重复提交原内容通常无法解决。";
+  }
   if (fallback && /project has been denied access/i.test(fallback)) {
     return "Google 已拒绝当前项目访问 Gemini API（403 权限错误），本次未能生成。请在 Google AI Studio 核对 API Key 对应的项目及项目状态；如果项目显示 Restricted、Unavailable，或已完成计费设置仍报此错，请联系 Google AI 支持并提供此 403 错误。查看项目与配额：https://aistudio.google.com/";
   }

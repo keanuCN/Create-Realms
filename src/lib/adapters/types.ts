@@ -55,6 +55,9 @@ export interface TaskStatus {
   status: TaskState;
   /** Single output (video). */
   url?: string;
+  /** A provider can return completed video bytes directly while polling. */
+  data?: Buffer;
+  contentType?: string;
   /** Multiple outputs (images). */
   urls?: string[];
   error?: { code?: string; message?: string };

@@ -54,6 +54,9 @@ export const PROVIDER_LABELS: Record<string, string> = {
   dashscope: "通义万相 / 千问 / HappyHorse",
   openai: "OpenAI",
   google: "Google Gemini",
+  "google-vertex": "Google Cloud Veo",
+  xai: "xAI Grok Imagine",
+  "tencent-hy": "腾讯混元 Hy Video",
 };
 
 export const PROVIDER_ORDER = [
@@ -65,6 +68,9 @@ export const PROVIDER_ORDER = [
   "dashscope",
   "openai",
   "google",
+  "google-vertex",
+  "xai",
+  "tencent-hy",
 ];
 
 const WIDE_RATIOS = ["16:9", "9:16", "1:1", "4:3", "3:4", "21:9"];
@@ -675,6 +681,114 @@ export const MODELS: ModelSpec[] = [
     maxPrompt: 4000,
     note: "时长按提示词向 Gemini 表达，结果以模型实际输出为准",
   },
+  {
+    id: "veo-3.1-generate-001",
+    provider: "google-vertex",
+    modality: "video",
+    label: "Veo 3.1",
+    tagline: "旗舰音画生成 · 首尾帧 / 主体参考图 · 720p–4K",
+    badge: "旗舰",
+    resolutions: ["4k", "1080p", "720p"],
+    defaultResolution: "720p",
+    durationList: [4, 6, 8],
+    defaultDuration: 8,
+    ratios: ["16:9", "9:16"],
+    defaultRatio: "16:9",
+    supportsFrames: true,
+    supportsLastFrame: true,
+    supportsReferenceImages: true,
+    maxReferenceImages: 3,
+    supportsAudio: true,
+    audioDefault: true,
+    maxVideos: 4,
+    maxPrompt: 4000,
+    note: "Google Cloud 正式版；官方提示词语言为英语，参考图仅支持 JPG / PNG。",
+  },
+  {
+    id: "veo-3.1-fast-generate-001",
+    provider: "google-vertex",
+    modality: "video",
+    label: "Veo 3.1 Fast",
+    tagline: "更快生成 · 首尾帧 / 主体参考图 · 720p–1080p",
+    badge: "快速",
+    resolutions: ["1080p", "720p"],
+    defaultResolution: "720p",
+    durationList: [4, 6, 8],
+    defaultDuration: 8,
+    ratios: ["16:9", "9:16"],
+    defaultRatio: "16:9",
+    supportsFrames: true,
+    supportsLastFrame: true,
+    supportsReferenceImages: true,
+    maxReferenceImages: 3,
+    supportsAudio: true,
+    audioDefault: true,
+    maxVideos: 4,
+    maxPrompt: 4000,
+    note: "Google Cloud 正式版；官方提示词语言为英语，参考图仅支持 JPG / PNG。",
+  },
+  {
+    id: "veo-3.1-lite-generate-001",
+    provider: "google-vertex",
+    modality: "video",
+    label: "Veo 3.1 Lite",
+    tagline: "轻量快速 · 首尾帧 · 720p–1080p",
+    badge: "预览版",
+    resolutions: ["1080p", "720p"],
+    defaultResolution: "720p",
+    durationList: [4, 6, 8],
+    defaultDuration: 8,
+    ratios: ["16:9", "9:16"],
+    defaultRatio: "16:9",
+    supportsFrames: true,
+    supportsLastFrame: true,
+    supportsAudio: true,
+    audioDefault: true,
+    maxVideos: 4,
+    maxPrompt: 4000,
+    note: "Google Cloud 预览版；不支持主体参考图，首尾帧仅支持 JPG / PNG，官方提示词语言为英语。",
+  },
+  {
+    id: "grok-imagine-video-1.5",
+    provider: "xai",
+    modality: "video",
+    label: "Grok Imagine Video 1.5",
+    tagline: "原生音画 · 最高 1080p · 1–15 秒",
+    badge: "音画一体",
+    resolutions: ["1080p", "720p", "480p"],
+    defaultResolution: "720p",
+    durationRange: { min: 1, max: 15 },
+    defaultDuration: 8,
+    ratios: ["16:9", "9:16", "1:1", "4:3", "3:4", "3:2", "2:3", "21:9", "5:2"],
+    defaultRatio: "16:9",
+    supportsFrames: true,
+    supportsLastFrame: true,
+    supportsReferenceImages: true,
+    maxReferenceImages: 10,
+    supportsAudio: true,
+    audioDefault: true,
+    maxVideos: 4,
+    maxPrompt: 4000,
+    note: "支持音画同出、首尾帧和参考图；参考图模式最高 720p，图生视频比例跟随图片。",
+  },
+  {
+    id: "hy-video-v1.5",
+    provider: "tencent-hy",
+    modality: "video",
+    label: "Hy Video 1.5",
+    tagline: "混元文生 / 图生 · 720p · 5 秒",
+    badge: "腾讯云",
+    resolutions: ["720p"],
+    defaultResolution: "720p",
+    durationList: [5],
+    defaultDuration: 5,
+    ratios: ["16:9", "9:16", "1:1", "4:3", "3:4"],
+    defaultRatio: "16:9",
+    supportsFrames: true,
+    maxVideos: 4,
+    maxPrompt: 4000,
+    note: "单张 JPG / PNG 首帧图生视频；固定 5 秒和 720p，图生视频比例跟随图片。",
+  },
 ];
 
 export function getModel(id: string): ModelSpec | undefined {
@@ -744,17 +858,19 @@ const USD_TO_CNY = 6.718;
  * - 可灵积分：按 1 积分约 1 元换算
  * - Vidu 积分：按官方标注 1 积分 = 0.03125 元换算
  * - 通义万相：人民币原价
- * 未收录的模型（火山方舟、HappyHorse、OpenAI、Google 等）界面上提示「见控制台」。
+ * 未收录价格的模型（火山方舟、HappyHorse、OpenAI、Google Gemini API 等）界面上提示「见控制台」。
  */
 export interface ModelPricing {
   /** 计费维度 */
-  unit: "second" | "image";
-  /** 显示单位：$ / ¥ / 积分 */
+  unit: "second" | "image" | "video";
+  /** 平台原生计费单位；界面统一换算为人民币。 */
   symbol: string;
   /** 一个原生计费单位对应的人民币金额 */
   rmbPerUnit: number;
   /** 按分辨率给出的单价，键与 ModelSpec.resolutions 对应 */
   byResolution?: Record<string, number>;
+  /** 含音频时按分辨率计价；未设置时与 byResolution 一致。 */
+  byResolutionAudio?: Record<string, number>;
   /** 与分辨率无关的单一价格 */
   flat?: number;
   /** 换算关系、是否含音频等补充说明 */
@@ -825,6 +941,44 @@ const PRICING: Record<string, ModelPricing> = {
     byResolution: { "720P": 0.6, "1080P": 1.0 },
     note: "人民币按秒计费",
   },
+  "veo-3.1-generate-001": {
+    unit: "video",
+    symbol: "$",
+    rmbPerUnit: USD_TO_CNY,
+    byResolution: { "720p": 0.2, "1080p": 0.2, "4k": 0.4 },
+    byResolutionAudio: { "720p": 0.4, "1080p": 0.4, "4k": 0.6 },
+    note: "按 Google Cloud 单条视频美元标价折算人民币；含音频与静音价格不同，以控制台为准",
+  },
+  "veo-3.1-fast-generate-001": {
+    unit: "video",
+    symbol: "$",
+    rmbPerUnit: USD_TO_CNY,
+    byResolution: { "720p": 0.08, "1080p": 0.1 },
+    byResolutionAudio: { "720p": 0.1, "1080p": 0.12 },
+    note: "按 Google Cloud 单条视频美元标价折算人民币；含音频与静音价格不同，以控制台为准",
+  },
+  "veo-3.1-lite-generate-001": {
+    unit: "video",
+    symbol: "$",
+    rmbPerUnit: USD_TO_CNY,
+    byResolution: { "720p": 0.03, "1080p": 0.05 },
+    byResolutionAudio: { "720p": 0.05, "1080p": 0.08 },
+    note: "按 Google Cloud 单条视频美元标价折算人民币；预览版，含音频与静音价格不同，以控制台为准",
+  },
+  "grok-imagine-video-1.5": {
+    unit: "second",
+    symbol: "$",
+    rmbPerUnit: USD_TO_CNY,
+    byResolution: { "480p": 0.08, "720p": 0.14, "1080p": 0.25 },
+    note: "按 xAI API 美元每秒参考价折算人民币；以账号控制台最终计费为准",
+  },
+  "hy-video-v1.5": {
+    unit: "second",
+    symbol: "$",
+    rmbPerUnit: USD_TO_CNY,
+    byResolution: { "720p": 0.048 },
+    note: "按腾讯云 TokenHub 公开参考价折算人民币（约 0.048 美元/秒）；以控制台账单为准",
+  },
 };
 
 export function pricingFor(modelId: string): ModelPricing | undefined {
@@ -832,14 +986,21 @@ export function pricingFor(modelId: string): ModelPricing | undefined {
 }
 
 /** 指定分辨率下的单价；未收录返回 null */
-export function unitPriceFor(model: ModelSpec, resolution?: string): number | null {
+export function unitPriceFor(
+  model: ModelSpec,
+  resolution?: string,
+  audio = model.audioDefault,
+): number | null {
   const pricing = pricingFor(model.id);
   if (!pricing) return null;
   if (pricing.flat != null) return pricing.flat;
-  if (!pricing.byResolution) return null;
-  const key = resolution && pricing.byResolution[resolution] != null ? resolution : null;
+  const prices = audio && pricing.byResolutionAudio
+    ? pricing.byResolutionAudio
+    : pricing.byResolution;
+  if (!prices) return null;
+  const key = resolution && prices[resolution] != null ? resolution : null;
   if (!key) return null;
-  return pricing.byResolution[key];
+  return prices[key];
 }
 
 function trimNumber(value: number): string {
@@ -854,26 +1015,34 @@ function formatRmb(value: number): string {
 }
 
 export function priceUnitLabel(pricing: ModelPricing): string {
-  return pricing.unit === "second" ? "秒" : "张";
+  if (pricing.unit === "second") return "秒";
+  return pricing.unit === "video" ? "条" : "张";
 }
 
-/** 模型胶囊上的单价标签，如「$0.08/秒」 */
-export function priceTag(model: ModelSpec, resolution?: string): string | null {
+/** 模型胶囊上的单价标签，如「¥0.54/秒」 */
+export function priceTag(
+  model: ModelSpec,
+  resolution?: string,
+  audio = model.audioDefault,
+): string | null {
   const pricing = pricingFor(model.id);
-  const unit = unitPriceFor(model, resolution);
+  const unit = unitPriceFor(model, resolution, audio);
   if (!pricing || unit == null) return null;
   return `${formatRmb(unit * pricing.rmbPerUnit)}/${priceUnitLabel(pricing)}`;
 }
 
 /** 该模型所有已收录档位的价格，用于悬停说明 */
-export function priceTable(model: ModelSpec): string[] {
+export function priceTable(model: ModelSpec, audio = model.audioDefault): string[] {
   const pricing = pricingFor(model.id);
   if (!pricing) return [];
   const unit = priceUnitLabel(pricing);
   if (pricing.flat != null) {
     return [`${formatRmb(pricing.flat * pricing.rmbPerUnit)}/${unit}`];
   }
-  return Object.entries(pricing.byResolution ?? {}).map(
+  const prices = audio && pricing.byResolutionAudio
+    ? pricing.byResolutionAudio
+    : pricing.byResolution;
+  return Object.entries(prices ?? {}).map(
     ([key, value]) => `${key} ${formatRmb(value * pricing.rmbPerUnit)}/${unit}`,
   );
 }
@@ -894,7 +1063,7 @@ export interface CostEstimate {
  */
 export function estimateCost(
   model: ModelSpec,
-  options: { resolution?: string; duration?: number; count: number },
+  options: { resolution?: string; duration?: number; count: number; audio?: boolean },
 ): CostEstimate {
   const pricing = pricingFor(model.id);
   const count = Math.max(1, options.count || 1);
@@ -907,7 +1076,7 @@ export function estimateCost(
     };
   }
 
-  const unit = unitPriceFor(model, options.resolution);
+  const unit = unitPriceFor(model, options.resolution, options.audio);
   if (unit == null) {
     return {
       priced: false,
@@ -919,14 +1088,13 @@ export function estimateCost(
     };
   }
 
-  const quantity =
-    pricing.unit === "second" ? (options.duration ?? 0) * count : count;
+  const quantity = pricing.unit === "second" ? (options.duration ?? 0) * count : count;
   const amount = unit * quantity;
   const unitLabel = priceUnitLabel(pricing);
   const detail =
     pricing.unit === "second"
       ? `${formatRmb(unit * pricing.rmbPerUnit)}/${unitLabel} × ${options.duration ?? 0} 秒 × ${count} 条`
-      : `${formatRmb(unit * pricing.rmbPerUnit)}/${unitLabel} × ${count} 张`;
+      : `${formatRmb(unit * pricing.rmbPerUnit)}/${unitLabel} × ${count} ${pricing.unit === "video" ? "条" : "张"}`;
 
   return {
     priced: true,
