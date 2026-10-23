@@ -145,7 +145,7 @@ export default function AdminUsers({ me }: { me: User }) {
                 <tr key={user.id} className="bg-[#0c1119] hover:bg-white/[0.02]">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2.5">
-                      <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-[#f1f0ed] text-[11px] font-semibold text-[#34332f] ring-1 ring-[#34332f]/10">
+                      <div className="admin-user-avatar grid size-8 shrink-0 place-items-center text-[11px] font-semibold">
                         {user.displayName.slice(0, 1)}
                       </div>
                       <div className="min-w-0">
@@ -245,11 +245,11 @@ export default function AdminUsers({ me }: { me: User }) {
         }
       >
         <div className="space-y-4">
-          <Field label="用户名" hint="登录用，字母数字">
+          <Field label="用户名" hint="2–32 位，可用中文、字母、数字、下划线、点和横线">
             <Input
               value={form.username}
               onChange={(event) => setForm({ ...form, username: event.target.value })}
-              placeholder="zhangsan"
+              placeholder="例如：张三、zhangsan_01"
             />
           </Field>
           <Field label="显示名称" hint="选填">
@@ -264,7 +264,7 @@ export default function AdminUsers({ me }: { me: User }) {
               type="text"
               value={form.password}
               onChange={(event) => setForm({ ...form, password: event.target.value })}
-              placeholder="建议用 8 位以上"
+              placeholder="至少 6 位"
             />
           </Field>
           <Field label="角色">

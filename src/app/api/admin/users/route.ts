@@ -11,8 +11,8 @@ const createSchema = z.object({
     .string()
     .trim()
     .min(2, "用户名至少 2 个字符")
-    .max(32)
-    .regex(/^[a-zA-Z0-9_.-]+$/, "用户名只能包含字母、数字、下划线、点和横线"),
+    .max(32, "用户名最多 32 个字符")
+    .regex(/^[\p{L}\p{N}_.-]+$/u, "用户名只能包含中文、字母、数字、下划线、点和横线"),
   displayName: z.string().trim().max(40).optional(),
   password: z.string().min(6, "密码至少 6 位").max(128),
   role: z.enum(["admin", "member"]).optional(),

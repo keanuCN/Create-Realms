@@ -15,23 +15,32 @@
 
 | 模块 | 能力 |
 | --- | --- |
-| **视频** | 文生视频、图生视频（首帧）、首尾帧过渡、多张参考图；可拖拽时长、生成数量 1–4 条、音频开关、提示词优化 |
+| **视频** | 文生视频、图生视频（首帧）、首尾帧过渡、多张参考图；可拖拽时长、按模型规格批量生成、音频开关、提示词优化 |
 | **图片** | 文生图、多张批量（最多 4 张）、多种比例与尺寸、提示词优化 |
 | **作品库** | 历史记录、关键词搜索、我的 / 团队切换、收藏、下载、公开分享链接 |
+| **余额与积分** | DeepSeek 共享账户余额、PixVerse 个人积分可在站内查询；其他供应商提供控制台快捷入口 |
 | **提示词库** | 个人收藏 + 共享大厅，标签分类、一键填入、使用次数统计 |
 | **账号** | 管理员开号 / 重置密码 / 停用；普通成员看不到管理入口 |
 | **模型设置** | 9 家供应商凭据管理、免费连通性测试、启用 / 停用 |
 
-**已接入的模型**（共 17 个，均在 `src/lib/models.ts` 中声明）
+管理员可在「我的模型 Key」页面配置**团队共享的提示词优化服务**。默认使用 DeepSeek API（`https://api.deepseek.com`，模型 `deepseek-flash`）；填入一次 API Key 后，全体成员均可使用，密钥加密存储且界面只显示掩码。
+
+**模型目录**（33 个可用模型，另有 1 个暂未开放型号仅供查看；目录在 `src/lib/models.ts` 中声明）
 
 | 供应商 | 视频模型 | 图片模型 |
 | --- | --- | --- |
 | MiniMax 海螺 | H3 Max、H3 | image-01 |
-| 即梦 / 豆包（火山方舟） | Seedance 2.5、Seedance 2.0 Fast | Seedream 5.0 Pro |
+| 即梦 / 豆包（火山方舟） | Seedance 2.5、Seedance 2.0 Fast | Seedream 5.0 Pro、Seedream 5.0 Flash |
 | 可灵 Kling | 3.0、2.6、3.0 Turbo | — |
-| 爱诗科技 PixVerse | V6 Max、V6、V5.6 | — |
+| 爱诗科技 PixVerse | C1、V6 Max、V6、V5.6 | — |
 | 生数科技 Vidu | Q3 Pro、Q3 Turbo | — |
-| 通义万相 / HappyHorse | HappyHorse 1.1、万相 2.7 | 万相 2.6 文生图 |
+| 通义万相 / 千问 / HappyHorse | 万相 3.0 / 3.0 Prime（预览）、HappyHorse 1.1、万相 2.7 | 万相 2.7 / 2.7 Pro、千问图像 3.0 / 3.0 Pro、万相 2.6 |
+| OpenAI | — | GPT Image 2.5 Sunburst、Flare |
+| Google Gemini | Omni Flash | Nano Banana 2、2 Lite、Pro、2.1 |
+
+> OpenAI Sora 视频 API 已于 2026-09-24 下线；Google Imagen 已停用，Veo 3.1 预览 API 的退役日期为 2026-10-22。因此当前接入使用 Google Gemini Omni Flash 视频生成与 Nano Banana 图片模型。
+
+> 可灵 4.0 已加入目录并以灰色显示“暂未开放”，不会提交生成请求。官方 API 页面目前标注为抢先体验，需获得开放资格并完成正式适配后才能启用。万相 3.0 / 3.0 Prime 当前按官方预览 API 接入；PixVerse C1 已接入现有文生、图生和首尾帧流程。
 
 > 各家的 Base URL、鉴权方式、请求参数差异都封装在 `src/lib/adapters/` 里，工作台只按「供应商 + 模型」下发任务。
 
@@ -211,6 +220,8 @@ curl http://127.0.0.1:3000/api/health
 | 爱诗科技 PixVerse | `API-KEY` 请求头 | <https://platform.pixverse.ai> |
 | 生数科技 Vidu | `Authorization: Token` | <https://platform.vidu.cn> |
 | 通义万相 / HappyHorse | `Authorization: Bearer`（阿里云百炼） | <https://bailian.console.aliyun.com> |
+| OpenAI | `Authorization: Bearer` | <https://platform.openai.com/api-keys> |
+| Google Gemini | `x-goog-api-key` | <https://aistudio.google.com/apikey> |
 
 页面上每家供应商都有：
 

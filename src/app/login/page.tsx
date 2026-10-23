@@ -47,10 +47,10 @@ export default function LoginPage() {
           </div>
 
           <div className="space-y-6">
-            <h1 className="font-serif text-3xl font-semibold leading-snug text-white">
+            <h1 className="text-3xl font-semibold leading-snug text-white">
               把想法变成
               <br />
-              <span className="text-[#3d3b37]">
+              <span className="gradient-text">
                 能看的画面
               </span>
             </h1>

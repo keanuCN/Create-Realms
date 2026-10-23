@@ -23,7 +23,7 @@ const schema = z.object({
   audio: z.boolean().optional(),
   firstFrameUploadId: z.string().uuid().optional(),
   lastFrameUploadId: z.string().uuid().optional(),
-  referenceUploadIds: z.array(z.string().uuid()).max(9).optional(),
+  referenceUploadIds: z.array(z.string().uuid()).max(10).optional(),
 });
 
 async function resolveUpload(userId: string, id?: string) {
@@ -46,11 +46,14 @@ export async function POST(req: Request) {
     const input = parsed.data;
     const model = getModel(input.model);
     if (!model) throw new ApiError("未知模型", 400);
+    if (model.availability === "coming-soon") {
+      throw new ApiError("该模型暂未开放，当前不能提交生成任务", 400);
+    }
     if (model.modality !== input.kind) throw new ApiError("模型与生成类型不匹配", 400);
 
-    if (!(await isProviderReady(model.provider))) {
+    if (!(await isProviderReady(model.provider, user.id))) {
       throw new ApiError(
-        `「${providerLabel(model.provider)}」还没有配置好凭据，请让管理员到「模型设置」页面填写并测试连接。`,
+        `你还没有配置「${providerLabel(model.provider)}」的个人凭据，请到「我的模型 Key」页面填写并测试连接。`,
         503,
       );
     }

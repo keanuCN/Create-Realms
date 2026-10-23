@@ -11,6 +11,17 @@ const MESSAGES: Record<string, string> = {
 };
 
 export function friendlyError(code?: string | null, fallback?: string | null) {
+  if (fallback && /project has been denied access/i.test(fallback)) {
+    return "Google 已拒绝当前项目访问 Gemini API（403 权限错误），本次未能生成。请在 Google AI Studio 核对 API Key 对应的项目及项目状态；如果项目显示 Restricted、Unavailable，或已完成计费设置仍报此错，请联系 Google AI 支持并提供此 403 错误。查看项目与配额：https://aistudio.google.com/";
+  }
+  if (
+    fallback &&
+    ((/limit:\s*0/i.test(fallback) && /free\s*tier/i.test(fallback)) ||
+      /免费层.*(每日限额为\s*0|调用额度)/.test(fallback)) &&
+    /gemini|google/i.test(fallback)
+  ) {
+    return "图片未生成：当前 Google API Key 所属项目的免费层没有该 Gemini 图片模型的调用额度（每日限额为 0）。请管理员在 Google AI Studio 为这个项目启用计费并确认付费层已生效后重试；也可以切换到其他已配置的图片模型。查看项目限额：https://ai.dev/rate-limit";
+  }
   if (code && MESSAGES[code]) return MESSAGES[code];
   if (fallback && fallback.trim()) return fallback.trim();
   return "生成失败，请稍后重试。";

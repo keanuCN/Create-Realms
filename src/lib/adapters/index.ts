@@ -2,8 +2,10 @@ import { arkAdapter } from "./ark";
 import { dashscopeAdapter } from "./dashscope";
 import { klingAdapter } from "./kling";
 import { minimaxAdapter } from "./minimax";
+import { openaiAdapter } from "./openai";
 import { pixverseAdapter } from "./pixverse";
 import { viduAdapter } from "./vidu";
+import { googleAdapter } from "./google";
 import type { ProviderAdapter } from "./types";
 
 const registry = new Map<string, ProviderAdapter>(
@@ -14,6 +16,8 @@ const registry = new Map<string, ProviderAdapter>(
     pixverseAdapter,
     viduAdapter,
     dashscopeAdapter,
+    openaiAdapter,
+    googleAdapter,
   ].map((adapter) => [adapter.id, adapter]),
 );
 

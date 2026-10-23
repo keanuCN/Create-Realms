@@ -14,9 +14,10 @@ import {
   Trash2,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
-import { Badge, Button, Input, Switch, cn, useToast } from "@/components/ui";
+import { Badge, Button, Input, cn, useToast } from "@/components/ui";
 import { MODELS, PRICING_AS_OF, priceTable } from "@/lib/models";
 import { api } from "@/lib/client";
+import PromptOptimizerSettings from "@/components/prompt-optimizer-settings";
 
 interface CredentialView {
   key: string;
@@ -54,7 +55,7 @@ interface Draft {
   enabled: boolean;
 }
 
-export default function ProviderSettings() {
+export default function ProviderSettings({ isAdmin = false }: { isAdmin?: boolean }) {
   const { toast } = useToast();
   const [items, setItems] = useState<ProviderView[]>([]);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
@@ -80,7 +81,7 @@ export default function ProviderSettings() {
 
   const load = useCallback(async () => {
     try {
-      const data = await api<{ items: ProviderView[] }>("/api/admin/providers");
+      const data = await api<{ items: ProviderView[] }>("/api/my/providers");
       applyItems(data.items);
     } catch (error) {
       toast(error instanceof Error ? error.message : "加载失败", "error");
@@ -119,13 +120,11 @@ export default function ProviderSettings() {
         if (value) credentials[field.key] = value;
       }
       const data = await api<{ items: ProviderView[] }>(
-        `/api/admin/providers/${item.id}`,
+        `/api/my/providers/${item.id}`,
         {
           method: "PUT",
           body: JSON.stringify({
             credentials,
-            apiBase: draft.apiBase.trim(),
-            enabled: draft.enabled,
           }),
         },
       );
@@ -145,7 +144,7 @@ export default function ProviderSettings() {
       const credentials: Record<string, string> = {};
       for (const field of item.credentials) credentials[field.key] = "";
       const data = await api<{ items: ProviderView[] }>(
-        `/api/admin/providers/${item.id}`,
+        `/api/my/providers/${item.id}`,
         { method: "PUT", body: JSON.stringify({ credentials }) },
       );
       applyItems(data.items);
@@ -169,7 +168,7 @@ export default function ProviderSettings() {
       }
 
       const result = await api<{ ok: boolean; message: string; usedDraft?: boolean }>(
-        `/api/admin/providers/${item.id}/test`,
+        `/api/my/providers/${item.id}/test`,
         { method: "POST", body: JSON.stringify({ credentials }) },
       );
 
@@ -190,19 +189,21 @@ export default function ProviderSettings() {
   return (
     <div className="mx-auto max-w-5xl">
       <PageHeader
-        eyebrow="ADMIN · PROVIDERS"
-        title="模型设置"
-        description="在这里填写各家模型的凭据，保存后立刻生效 —— 不用改配置文件，也不用重启服务。"
+        eyebrow="PERSONAL · PROVIDERS"
+        title="我的模型 Key"
+        description="每位成员单独填写自己的供应商 Key。生成任务和状态查询都会使用提交者的凭据。"
       />
 
       <div className="mb-5 flex items-start gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] p-4">
         <ShieldCheck className="mt-0.5 size-4 shrink-0 text-emerald-300" />
         <div className="text-[12px] leading-6 text-emerald-100/80">
-          凭据使用 AES-256-GCM 加密后存入数据库，页面只展示掩码（如
+          你的凭据与其他成员隔离，并使用 AES-256-GCM 加密后存入数据库；页面只展示掩码（如
           <span className="mx-1 font-mono">sk-cp-••••••••abcd</span>），任何人都无法在界面上看到完整内容。
           「测试连接」调用的是各家的免费查询接口，不会产生生成费用。
         </div>
       </div>
+
+      {isAdmin ? <PromptOptimizerSettings /> : null}
 
       {loading ? (
         <div className="space-y-3">
@@ -324,37 +325,14 @@ export default function ProviderSettings() {
                     ))}
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-[12px] text-slate-400">Base URL</label>
-                    <Input
-                      value={draft.apiBase}
-                      onChange={(event) =>
-                        setDrafts((prev) => ({
-                          ...prev,
-                          [item.id]: { ...prev[item.id], apiBase: event.target.value },
-                        }))
-                      }
-                      placeholder={item.defaultBase}
-                      className="font-mono text-[12px]"
-                    />
-                    <p className="text-[11px] leading-5 text-slate-500">{item.note}</p>
+                  <div className="space-y-1.5 rounded-xl border border-white/[0.06] bg-black/10 p-3">
+                    <p className="text-[12px] text-slate-400">平台接入地址</p>
+                    <p className="break-all font-mono text-[11px] text-slate-500">{item.apiBase}</p>
+                    <p className="text-[11px] leading-5 text-slate-500">{item.note} · 地址和供应商启停由管理员统一管理</p>
                   </div>
                 </div>
 
                 <div className="mt-4 flex flex-wrap items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={draft.enabled}
-                      onChange={(next) =>
-                        setDrafts((prev) => ({
-                          ...prev,
-                          [item.id]: { ...prev[item.id], enabled: next },
-                        }))
-                      }
-                    />
-                    <span className="text-[12px] text-slate-400">启用该供应商</span>
-                  </div>
-
                   <div className="ml-auto flex flex-wrap items-center gap-2">
                     {hasUnsavedDraft ? (
                       <Badge tone="warning">有未保存的改动</Badge>

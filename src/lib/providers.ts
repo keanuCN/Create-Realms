@@ -41,7 +41,7 @@ export const PROVIDERS: ProviderSpec[] = [
     id: "volcengine-ark",
     label: "即梦 / 豆包（火山方舟）",
     vendor: "字节跳动",
-    capability: "视频（Seedance 2.5 / 2.0）+ 图片（Seedream 5.0）",
+    capability: "视频（Seedance 2.5 / 2.0）+ 图片（Seedream 5.0 Pro / Flash）",
     defaultBase: "https://ark.cn-beijing.volces.com/api/v3",
     docsUrl: "https://console.volcengine.com/ark",
     note: "注意 Base URL 必须带 /api/v3 后缀",
@@ -51,7 +51,7 @@ export const PROVIDERS: ProviderSpec[] = [
     id: "kling",
     label: "可灵 AI",
     vendor: "快手",
-    capability: "视频（可灵 3.0 / 2.6 / 3.0 Turbo）",
+    capability: "视频（可灵 3.0 / 2.6 / 3.0 Turbo；4.0 暂未开放）",
     defaultBase: "https://api-beijing.klingai.com",
     docsUrl: "https://klingai.com/dev/api-key",
     note: "使用新版 API Key 鉴权（控制台「API Key」页面，注意不是 AK/SK）",
@@ -61,7 +61,7 @@ export const PROVIDERS: ProviderSpec[] = [
     id: "pixverse",
     label: "爱诗科技 PixVerse",
     vendor: "爱诗科技",
-    capability: "视频（V6 Max / V6 / V5.6）",
+    capability: "视频（C1 / V6 Max / V6 / V5.6）",
     defaultBase: "https://app-api.pixverse.ai",
     docsUrl: "https://platform.pixverse.ai",
     note: "使用 API-KEY 请求头鉴权",
@@ -79,9 +79,9 @@ export const PROVIDERS: ProviderSpec[] = [
   },
   {
     id: "dashscope",
-    label: "通义万相 / HappyHorse",
+    label: "通义万相 / 千问 / HappyHorse",
     vendor: "阿里云百炼",
-    capability: "视频（HappyHorse 1.1 / 万相 2.7）+ 图片（万相 2.6）",
+    capability: "视频（HappyHorse 1.1 / 万相 3.0、2.7）+ 图片（万相 2.7、千问图像 3.0、万相 2.6）",
     defaultBase: "https://dashscope.aliyuncs.com/api/v1",
     docsUrl: "https://bailian.console.aliyun.com/cn-beijing/model/settings/api-key",
     note: "百炼的 Key 按地域独立，注意控制台地域与 Base URL 对应",
@@ -91,20 +91,20 @@ export const PROVIDERS: ProviderSpec[] = [
     id: "openai",
     label: "OpenAI",
     vendor: "OpenAI",
-    capability: "图片（gpt-image）+ 视频（Sora）",
+    capability: "图片（GPT Image 2.5 Sunburst / Flare）",
     defaultBase: "https://api.openai.com/v1",
     docsUrl: "https://platform.openai.com/api-keys",
-    note: "适配器尚未接入",
+    note: "已接入图片生成与参考图编辑；OpenAI Sora 视频 API 已下线",
     credentialFields: SINGLE_KEY("sk-..."),
   },
   {
     id: "google",
-    label: "Google AI",
+    label: "Google Gemini",
     vendor: "Google",
-    capability: "图片（Imagen）+ 视频（Veo）",
+    capability: "图片（Nano Banana 2 / 2 Lite / Pro / 2.1）+ 视频（Gemini Omni Flash）",
     defaultBase: "https://generativelanguage.googleapis.com",
     docsUrl: "https://aistudio.google.com/apikey",
-    note: "适配器尚未接入",
+    note: "Gemini API Key；Imagen 已停用，Veo 3.1 预览 API 于 2026-10-22 到退役日期",
     credentialFields: SINGLE_KEY("AIza..."),
   },
   {
@@ -269,23 +269,92 @@ export async function getProviderRuntime(provider: string): Promise<ProviderRunt
   return value;
 }
 
-export async function getAdapterContext(provider: string): Promise<AdapterContext> {
+export async function getAdapterContext(provider: string, userId: string): Promise<AdapterContext> {
   const runtime = await getProviderRuntime(provider);
+  const credentials = await getUserCredentials(provider, userId);
   return {
     provider,
     apiBase: runtime.apiBase,
-    apiKey: runtime.apiKey,
-    credentials: runtime.credentials,
+    apiKey: credentials.apiKey ?? "",
+    credentials,
   };
 }
 
 /** 供应商是否可用：已启用 + 适配器已接入 + 必填凭据齐全。 */
-export async function isProviderReady(provider: string): Promise<boolean> {
+export async function isProviderReady(provider: string, userId: string): Promise<boolean> {
   const spec = getProviderSpec(provider);
   const adapter = getAdapter(provider);
   if (!spec || !adapter) return false;
   const runtime = await getProviderRuntime(provider);
-  return runtime.enabled && hasAllCredentials(spec, runtime.credentials);
+  const credentials = await getUserCredentials(provider, userId);
+  return runtime.enabled && hasAllCredentials(spec, credentials);
+}
+
+interface UserProviderRow {
+  api_key_enc: string | null;
+  updated_at: Date;
+}
+
+async function getUserCredentials(provider: string, userId: string): Promise<Credentials> {
+  const rows = await sql<UserProviderRow[]>`
+    SELECT api_key_enc, updated_at FROM user_provider_configs
+    WHERE user_id = ${userId} AND provider = ${provider} LIMIT 1
+  `;
+  return activeCredentials(parseStoredCredentials(decryptSecret(rows[0]?.api_key_enc)));
+}
+
+export async function listUserProviderViews(userId: string): Promise<ProviderView[]> {
+  const [globalViews, rows] = await Promise.all([
+    listProviderViews(),
+    sql<(UserProviderRow & { provider: string })[]>`
+      SELECT provider, api_key_enc, updated_at FROM user_provider_configs WHERE user_id = ${userId}
+    `,
+  ]);
+  const byId = new Map(rows.map((row) => [row.provider, row]));
+  return globalViews.map((item) => {
+    const row = byId.get(item.id);
+    const credentials = activeCredentials(parseStoredCredentials(decryptSecret(row?.api_key_enc)));
+    return {
+      ...item,
+      configured: hasAllCredentials(item, credentials),
+      source: Object.keys(credentials).length ? "database" : "none",
+      credentials: item.credentialFields.map((field) => {
+        const value = credentials[field.key] ?? "";
+        return { ...field, configured: Boolean(value), masked: maskSecret(value) };
+      }),
+      updatedAt: row?.updated_at ? row.updated_at.toISOString() : null,
+      lastCheckAt: null,
+      lastCheckOk: null,
+      lastCheckMessage: null,
+    };
+  });
+}
+
+export async function saveUserProviderCredentials(
+  provider: string,
+  credentials: Credentials,
+  userId: string,
+): Promise<void> {
+  const spec = getProviderSpec(provider);
+  if (!spec) throw new Error("未知的模型供应商");
+  const current = await getUserCredentials(provider, userId);
+  const merged = { ...current };
+  for (const field of spec.credentialFields) {
+    const value = credentials[field.key];
+    if (value === undefined) continue;
+    if (value.trim()) merged[field.key] = value.trim();
+    else delete merged[field.key];
+  }
+  const encrypted = Object.keys(merged).length
+    ? encryptSecret(serializeCredentials(merged))
+    : null;
+  await sql`
+    INSERT INTO user_provider_configs (user_id, provider, api_key_enc, updated_at)
+    VALUES (${userId}, ${provider}, ${encrypted}, now())
+    ON CONFLICT (user_id, provider) DO UPDATE SET
+      api_key_enc = ${encrypted}, updated_at = now()
+  `;
+  runtimeCache.delete(`${provider}:${userId}`);
 }
 
 export interface ProviderCredentialView extends CredentialField {
@@ -424,16 +493,18 @@ export interface TestResult {
 export async function testProvider(
   provider: string,
   overrides?: Credentials,
+  userId?: string,
 ): Promise<TestResult> {
   const spec = getProviderSpec(provider);
   if (!spec) return { ok: false, message: "未知的模型供应商" };
 
   const adapter = getAdapter(provider);
   const runtime = await getProviderRuntime(provider);
+  const savedCredentials = userId ? await getUserCredentials(provider, userId) : runtime.credentials;
 
   const draft = activeCredentials(overrides ?? {});
   const usedDraft = Object.keys(draft).length > 0;
-  const credentials = usedDraft ? { ...runtime.credentials, ...draft } : runtime.credentials;
+  const credentials = usedDraft ? { ...savedCredentials, ...draft } : savedCredentials;
 
   let result: TestResult;
   if (!adapter) {
@@ -462,7 +533,7 @@ export async function testProvider(
   }
 
   // 只用已保存的配置测试时才写入「上次检查结果」，避免用未保存的值污染记录
-  if (!usedDraft) {
+  if (!usedDraft && !userId) {
     await recordCheck(provider, result.ok, result.message).catch(() => {});
   }
   return result;

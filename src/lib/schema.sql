@@ -112,3 +112,12 @@ CREATE TABLE IF NOT EXISTS provider_configs (
   last_check_ok boolean,
   last_check_message text
 );
+
+-- 每位用户独立保存供应商凭据；任务始终使用创建者自己的 Key。
+CREATE TABLE IF NOT EXISTS user_provider_configs (
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  provider text NOT NULL,
+  api_key_enc text,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, provider)
+);

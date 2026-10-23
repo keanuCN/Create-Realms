@@ -2,16 +2,20 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Clapperboard,
-  Images,
+  Coins,
   KeyRound,
   LayoutGrid,
   LogOut,
   Menu,
+  Moon,
+  BookOpenText,
   NotebookPen,
   ShieldCheck,
+  Sun,
   X,
 } from "lucide-react";
 import { Badge, cn } from "@/components/ui";
@@ -21,7 +25,11 @@ const NAV = [
   { href: "/", label: "创作工作台", icon: Clapperboard, exact: true },
   { href: "/library", label: "作品库", icon: LayoutGrid },
   { href: "/prompts", label: "提示词库", icon: NotebookPen },
+  { href: "/guide", label: "新手教程", icon: BookOpenText },
 ];
+
+type ActiveTooltip = { target: HTMLElement; content: string };
+type TooltipPosition = { left: number; top: number };
 
 export default function AppShell({
   user,
@@ -33,7 +41,107 @@ export default function AppShell({
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [health, setHealth] = useState<{ mock: boolean; hasApiKey: boolean } | null>(null);
+  const [activeTooltip, setActiveTooltip] = useState<ActiveTooltip | null>(null);
+  const [tooltipPosition, setTooltipPosition] = useState<TooltipPosition | null>(null);
+  const tooltipTarget = useRef<HTMLElement | null>(null);
+  const tooltipElement = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const findTarget = (target: EventTarget | null) =>
+      target instanceof Element ? target.closest<HTMLElement>(".tip[data-tip]") : null;
+
+    const show = (target: HTMLElement) => {
+      const content = target.dataset.tip;
+      if (!content) return;
+      tooltipTarget.current = target;
+      setTooltipPosition(null);
+      setActiveTooltip({ target, content });
+    };
+
+    const hide = () => {
+      tooltipTarget.current = null;
+      setActiveTooltip(null);
+      setTooltipPosition(null);
+    };
+
+    const handlePointerOver = (event: PointerEvent) => {
+      const target = findTarget(event.target);
+      if (target && target !== findTarget(event.relatedTarget)) show(target);
+      else if (!target && tooltipTarget.current) hide();
+    };
+
+    const handlePointerOut = (event: PointerEvent) => {
+      const current = tooltipTarget.current;
+      if (!current) return;
+      if (event.relatedTarget instanceof Node && current.contains(event.relatedTarget)) return;
+      if (findTarget(event.relatedTarget) === current) return;
+      hide();
+    };
+
+    const handleFocusIn = (event: FocusEvent) => {
+      const target = findTarget(event.target);
+      if (target) show(target);
+    };
+
+    const handleFocusOut = (event: FocusEvent) => {
+      const current = tooltipTarget.current;
+      if (!current) return;
+      if (event.relatedTarget instanceof Node && current.contains(event.relatedTarget)) return;
+      hide();
+    };
+
+    document.addEventListener("pointerover", handlePointerOver);
+    document.addEventListener("pointerout", handlePointerOut);
+    document.addEventListener("focusin", handleFocusIn);
+    document.addEventListener("focusout", handleFocusOut);
+    return () => {
+      document.removeEventListener("pointerover", handlePointerOver);
+      document.removeEventListener("pointerout", handlePointerOut);
+      document.removeEventListener("focusin", handleFocusIn);
+      document.removeEventListener("focusout", handleFocusOut);
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!activeTooltip) return;
+
+    const placeTooltip = () => {
+      const trigger = activeTooltip.target;
+      const tooltip = tooltipElement.current;
+      if (!trigger.isConnected || !tooltip) return;
+
+      const triggerRect = trigger.getBoundingClientRect();
+      const tooltipRect = tooltip.getBoundingClientRect();
+      const margin = 12;
+      const maxLeft = Math.max(margin, window.innerWidth - tooltipRect.width - margin);
+      const left = Math.min(
+        Math.max(triggerRect.left + triggerRect.width / 2 - tooltipRect.width / 2, margin),
+        maxLeft,
+      );
+      const above = triggerRect.top - tooltipRect.height - 8;
+      const preferredTop = above >= margin ? above : triggerRect.bottom + 8;
+      const maxTop = Math.max(margin, window.innerHeight - tooltipRect.height - margin);
+      const top = Math.min(Math.max(preferredTop, margin), maxTop);
+
+      setTooltipPosition((previous) =>
+        previous?.left === left && previous.top === top ? previous : { left, top },
+      );
+    };
+
+    placeTooltip();
+    window.addEventListener("resize", placeTooltip);
+    document.addEventListener("scroll", placeTooltip, true);
+    return () => {
+      window.removeEventListener("resize", placeTooltip);
+      document.removeEventListener("scroll", placeTooltip, true);
+    };
+  }, [activeTooltip]);
+
+  useEffect(() => {
+    setTheme(document.documentElement.dataset.theme === "light" ? "light" : "dark");
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -62,9 +170,24 @@ export default function AppShell({
     router.refresh();
   }
 
+  function toggleTheme() {
+    const next = theme === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = next;
+    setTheme(next);
+    try {
+      localStorage.setItem("zaojing-theme", next);
+    } catch {
+      // 存储不可用时，仍在当前页面切换主题。
+    }
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute("content", next === "light" ? "#ffffff" : "#080b11");
+  }
+
   const nav = [...NAV];
+  nav.push({ href: "/settings/providers", label: "我的模型 Key", icon: KeyRound, exact: false });
+  nav.push({ href: "/balances", label: "余额与积分", icon: Coins, exact: false });
   if (user.role === "admin") {
-    nav.push({ href: "/admin/providers", label: "模型设置", icon: KeyRound, exact: false });
     nav.push({ href: "/admin", label: "用户管理", icon: ShieldCheck, exact: true });
   }
 
@@ -76,7 +199,7 @@ export default function AppShell({
         </div>
         <div>
           <p className="text-sm font-semibold tracking-wide text-white">造境</p>
-          <p className="text-[11px] text-slate-500">团队创作空间</p>
+          <p className="brand-affiliation text-[11px] font-medium tracking-wide">中健安华AIGC</p>
         </div>
       </div>
 
@@ -142,8 +265,23 @@ export default function AppShell({
           </div>
         </div>
 
+        <button
+          type="button"
+          onClick={toggleTheme}
+          aria-pressed={theme === "light"}
+          aria-label={theme === "dark" ? "切换到浅色主题" : "切换到深色主题"}
+          className="nav-item flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-400 transition hover:bg-white/[0.04] hover:text-slate-200"
+        >
+          {theme === "dark" ? (
+            <Sun className="size-4 text-[#a99cff]" />
+          ) : (
+            <Moon className="size-4 text-[#a99cff]" />
+          )}
+          {theme === "dark" ? "切换浅色主题" : "切换深色主题"}
+        </button>
+
         <div className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition hover:bg-white/[0.03]">
-          <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-[#f1f0ed] text-xs font-semibold text-[#34332f] ring-1 ring-[#34332f]/15">
+          <div className="app-user-avatar grid size-8 shrink-0 place-items-center text-xs font-semibold">
             {user.displayName.slice(0, 1).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
@@ -199,15 +337,31 @@ export default function AppShell({
             <Menu className="size-5" />
           </button>
           <span className="text-sm font-semibold">造境</span>
-          <Badge tone="brand" className="ml-auto">
-            <Images className="size-3" />
-            内部使用
+          <Badge tone="cinnabar" className="ml-auto">
+            中健安华AIGC
           </Badge>
         </header>
         <main className="animate-fade-up min-w-0 flex-1 px-4 pb-6 pt-4 sm:px-6 lg:px-8 lg:pt-5">
           {children}
         </main>
       </div>
+      {activeTooltip && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              ref={tooltipElement}
+              role="tooltip"
+              className="floating-tooltip"
+              style={{
+                left: tooltipPosition?.left ?? 0,
+                top: tooltipPosition?.top ?? 0,
+                visibility: tooltipPosition ? "visible" : "hidden",
+              }}
+            >
+              {activeTooltip.content}
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

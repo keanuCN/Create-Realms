@@ -148,7 +148,7 @@ async function finalizeImages(job: JobRow, urls: string[], ratio: string) {
         UPDATE assets SET
           status = 'succeeded',
           storage_key = ${key},
-          remote_url = ${url},
+          remote_url = ${url.startsWith("data:") ? null : url},
           aspect_ratio = ${ratio},
           completed_at = now(),
           updated_at = now(),
@@ -164,7 +164,7 @@ async function finalizeImages(job: JobRow, urls: string[], ratio: string) {
         ) VALUES (
           ${job.user_id}, 'image', ${job.provider}, ${job.model}, 'succeeded',
           ${job.prompt}, ${jsonb(job.params)},
-          ${key}, ${url}, ${ratio}, now()
+          ${key}, ${url.startsWith("data:") ? null : url}, ${ratio}, now()
         )
       `;
     }
@@ -177,15 +177,57 @@ async function downloadRemoteFile(url: string) {
   return downloadRemote(url);
 }
 
+async function finalizeVideo(
+  job: JobRow,
+  result: {
+    url?: string;
+    data?: Buffer;
+    contentType?: string;
+    resolution?: string;
+    duration?: number;
+    ratio?: string;
+    usage?: Record<string, unknown>;
+  },
+) {
+  const downloaded = result.data
+    ? { data: result.data, contentType: result.contentType || "video/mp4" }
+    : result.url
+      ? await downloadRemoteFile(result.url)
+      : null;
+  if (!downloaded) {
+    throw new ProviderError("任务已完成但没有返回视频内容", "no_output", 500);
+  }
+
+  const key = storageKeyFor(job.id, extFromMime(downloaded.contentType, "mp4"));
+  await saveMedia(key, downloaded.data);
+
+  await sql`
+    UPDATE assets SET
+      status = 'succeeded',
+      storage_key = ${key},
+      remote_url = ${result.url?.startsWith("data:") ? null : result.url ?? null},
+      duration_seconds = ${result.duration ?? null},
+      resolution = ${result.resolution ?? null},
+      aspect_ratio = ${result.ratio ?? null},
+      usage = ${jsonb(result.usage ?? null)},
+      completed_at = now(),
+      updated_at = now(),
+      error_code = NULL,
+      error_message = NULL
+    WHERE id = ${job.id}
+  `;
+  log(`video ${job.id} succeeded via ${job.provider} (${Math.round(downloaded.data.length / 1024)} KB)`);
+}
+
 async function submitJob(job: JobRow) {
   const adapter = requireAdapter(job);
-  const ctx: AdapterContext = await getAdapterContext(job.provider);
+  const ctx: AdapterContext = await getAdapterContext(job.provider, job.user_id);
 
   if (job.kind === "video") {
     if (!adapter.submitVideo) {
       throw new ProviderError(`${adapter.label} 暂不支持视频生成`, "unsupported", 500);
     }
-    const { taskId } = await adapter.submitVideo(ctx, {
+    const result = await adapter.submitVideo(ctx, {
       model: job.model,
       prompt: job.prompt,
       resolution: paramString(job.params, "resolution"),
@@ -204,11 +246,20 @@ async function submitJob(job: JobRow) {
       referenceImages: await readReferences(job.params),
     });
 
+    if (result.data || result.url) {
+      await finalizeVideo(job, result);
+      return;
+    }
+
+    if (!result.taskId) {
+      throw new ProviderError("供应商未返回任务 ID 或视频结果", "empty", 200);
+    }
+
     await sql`
-      UPDATE assets SET provider_task_id = ${taskId}, next_run_at = now() + interval '3 seconds', updated_at = now()
+      UPDATE assets SET provider_task_id = ${result.taskId}, next_run_at = now() + interval '3 seconds', updated_at = now()
       WHERE id = ${job.id}
     `;
-    log(`submitted video ${job.id} via ${job.provider} -> ${taskId}`);
+    log(`submitted video ${job.id} via ${job.provider} -> ${result.taskId}`);
     return;
   }
 
@@ -248,7 +299,7 @@ async function submitJob(job: JobRow) {
 
 async function pollJob(job: JobRow) {
   const adapter = requireAdapter(job);
-  const ctx = await getAdapterContext(job.provider);
+  const ctx = await getAdapterContext(job.provider, job.user_id);
   const taskId = job.provider_task_id!;
 
   const state =
@@ -298,30 +349,7 @@ async function pollJob(job: JobRow) {
     return;
   }
 
-  if (!state.url) {
-    throw new ProviderError("任务已完成但没有返回视频地址", "no_output", 500);
-  }
-
-  const { data, contentType } = await downloadRemoteFile(state.url);
-  const key = storageKeyFor(job.id, extFromMime(contentType, "mp4"));
-  await saveMedia(key, data);
-
-  await sql`
-    UPDATE assets SET
-      status = 'succeeded',
-      storage_key = ${key},
-      remote_url = ${state.url},
-      duration_seconds = ${state.duration ?? null},
-      resolution = ${state.resolution ?? null},
-      aspect_ratio = ${state.ratio ?? null},
-      usage = ${jsonb(state.usage ?? null)},
-      completed_at = now(),
-      updated_at = now(),
-      error_code = NULL,
-      error_message = NULL
-    WHERE id = ${job.id}
-  `;
-  log(`video ${job.id} succeeded via ${job.provider} (${Math.round(data.length / 1024)} KB)`);
+  await finalizeVideo(job, state);
 }
 
 async function processJob(job: JobRow) {

@@ -94,17 +94,22 @@ export function Select({ className, ...props }: SelectHTMLAttributes<HTMLSelectE
 
 export function Field({
   label,
+  action,
   hint,
   children,
 }: {
   label: string;
+  action?: ReactNode;
   hint?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <label className="text-[13px] font-medium text-slate-300">{label}</label>
+        <div className="flex items-center gap-2">
+          <label className="text-[13px] font-medium text-slate-300">{label}</label>
+          {action}
+        </div>
         {hint ? <span className="text-[11px] text-slate-500">{hint}</span> : null}
       </div>
       {children}
@@ -174,6 +179,7 @@ export function Segmented<T extends string>({
           <button
             key={option.value}
             type="button"
+            aria-pressed={active}
             onClick={() => onChange(option.value)}
             className={cn(
               "relative z-10 flex h-9 items-center justify-center gap-2 rounded-lg text-[13px] font-medium transition-colors duration-300",
@@ -293,7 +299,7 @@ export function Badge({
   children,
   className,
 }: {
-  tone?: "default" | "success" | "warning" | "danger" | "brand";
+  tone?: "default" | "success" | "warning" | "danger" | "brand" | "cinnabar";
   children: ReactNode;
   className?: string;
 }) {
@@ -303,6 +309,7 @@ export function Badge({
     warning: "bg-amber-500/10 text-amber-300 border-amber-500/25",
     danger: "bg-rose-500/10 text-rose-300 border-rose-500/25",
     brand: "bg-[#7c6cff]/12 text-[#bdb3ff] border-[#7c6cff]/30",
+    cinnabar: "badge-cinnabar",
   };
   return (
     <span
@@ -444,8 +451,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {items.map((item) => (
           <div
             key={item.id}
+            data-tone={item.tone}
             className={cn(
-              "animate-toast-in pointer-events-auto relative flex items-start gap-2 overflow-hidden rounded-xl border px-4 py-3 text-sm shadow-2xl backdrop-blur-md",
+              "toast-message animate-toast-in pointer-events-auto relative flex items-start gap-2 overflow-hidden rounded-xl border px-4 py-3 text-sm shadow-2xl backdrop-blur-md",
               item.tone === "success" &&
                 "border-emerald-500/30 bg-emerald-950/85 text-emerald-100",
               item.tone === "error" && "border-rose-500/30 bg-rose-950/85 text-rose-100",

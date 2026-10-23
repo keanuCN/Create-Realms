@@ -20,6 +20,13 @@ export default function LibraryPage() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [viewer, setViewer] = useState<AssetWithUser | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    api<{ user: { id: string } | null }>("/api/auth/me")
+      .then((data) => setCurrentUserId(data.user?.id ?? null))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQ(q.trim()), 350);
@@ -156,64 +163,67 @@ export default function LibraryPage() {
         </div>
       </div>
 
-      {loading ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-          {Array.from({ length: 10 }).map((_, index) => (
-            <div
-              key={index}
-              className="skeleton aspect-square rounded-2xl border border-white/5"
-            />
-          ))}
-        </div>
-      ) : items.length === 0 ? (
-        <EmptyState
-          icon={favorite ? <Heart className="size-7" /> : <Images className="size-7" />}
-          title={favorite ? "还没有收藏" : "这里还空着"}
-          description={
-            favorite
-              ? "点作品卡片右上角的爱心，把喜欢的收进来。"
-              : "去工作台生成第一个作品，它会自动出现在这里。"
-          }
-          action={
-            <a
-              href="/"
-              className="mt-1 inline-flex h-9 items-center gap-2 rounded-lg bg-[#7c6cff] px-4 text-[13px] font-medium text-white"
-            >
-              <Sparkles className="size-4" />
-              去创作
-            </a>
-          }
-        />
-      ) : (
-        <>
+      <div className="min-h-0 max-h-[calc(100dvh-20rem)] overflow-y-auto overscroll-contain pr-1 lg:max-h-[calc(100dvh-17rem)]">
+        {loading ? (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-            {items.map((asset) => (
-              <AssetCard
-                key={asset.id}
-                asset={asset}
-                onOpen={setViewer}
-                onChanged={() =>
-                  fetchPage(0)
-                    .then((data) => {
-                      setItems(data.items);
-                      setTotal(data.total);
-                    })
-                    .catch(() => {})
-                }
+            {Array.from({ length: 10 }).map((_, index) => (
+              <div
+                key={index}
+                className="skeleton aspect-square rounded-2xl border border-white/5"
               />
             ))}
           </div>
-
-          {items.length < total ? (
-            <div className="mt-6 flex justify-center">
-              <Button variant="secondary" loading={loadingMore} onClick={loadMore}>
-                <LayoutGrid className="size-4" />
-                加载更多（{items.length}/{total}）
-              </Button>
+        ) : items.length === 0 ? (
+          <EmptyState
+            icon={favorite ? <Heart className="size-7" /> : <Images className="size-7" />}
+            title={favorite ? "还没有收藏" : "这里还空着"}
+            description={
+              favorite
+                ? "点作品卡片右上角的爱心，把喜欢的收进来。"
+                : "去工作台生成第一个作品，它会自动出现在这里。"
+            }
+            action={
+              <a
+                href="/"
+                className="mt-1 inline-flex h-9 items-center gap-2 rounded-lg bg-[#7c6cff] px-4 text-[13px] font-medium text-white"
+              >
+                <Sparkles className="size-4" />
+                去创作
+              </a>
+            }
+          />
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+              {items.map((asset) => (
+                <AssetCard
+                  key={asset.id}
+                  asset={asset}
+                  canManage={asset.userId === currentUserId}
+                  onOpen={setViewer}
+                  onChanged={() =>
+                    fetchPage(0)
+                      .then((data) => {
+                        setItems(data.items);
+                        setTotal(data.total);
+                      })
+                      .catch(() => {})
+                  }
+                />
+              ))}
             </div>
-          ) : null}
-        </>
-      )}
+
+            {items.length < total ? (
+              <div className="mt-6 flex justify-center pb-1">
+                <Button variant="secondary" loading={loadingMore} onClick={loadMore}>
+                  <LayoutGrid className="size-4" />
+                  加载更多（{items.length}/{total}）
+                </Button>
+              </div>
+            ) : null}
+          </>
+        )}
+      </div>
 
       <AssetViewer
         asset={viewer}

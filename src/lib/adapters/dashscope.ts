@@ -70,6 +70,16 @@ const IMAGE_SIZES: Record<string, string> = {
   "9:16": "960*1696",
 };
 
+function imageSizeForTier(ratio: string, resolution = "2K"): string {
+  const side = resolution === "4K" ? 4096 : resolution === "1K" ? 1024 : 2048;
+  const [widthRatio, heightRatio] = ratio.split(":").map(Number);
+  const ratioValue = widthRatio > 0 && heightRatio > 0 ? widthRatio / heightRatio : 1;
+  const roundToMultipleOf16 = (value: number) => Math.max(16, Math.round(value / 16) * 16);
+  const width = roundToMultipleOf16(side * Math.sqrt(ratioValue));
+  const height = roundToMultipleOf16(side / Math.sqrt(ratioValue));
+  return `${width}*${height}`;
+}
+
 export const dashscopeAdapter: ProviderAdapter = {
   id: "dashscope",
   label: "通义万相 / HappyHorse",
@@ -92,8 +102,19 @@ export const dashscopeAdapter: ProviderAdapter = {
       if (req.firstFrame) media.push({ type: "first_frame", url: dataUri(req.firstFrame) });
       if (req.lastFrame) media.push({ type: "last_frame", url: dataUri(req.lastFrame) });
       input.media = media;
+    } else if (req.model.startsWith("wan3.0-video") && req.referenceImages?.length) {
+      input.media = req.referenceImages.slice(0, 10).map((image) => ({
+        type: "reference_image",
+        url: dataUri(image),
+      }));
+      parameters.ratio = req.ratio || "adaptive";
     } else {
-      parameters.ratio = req.ratio || "16:9";
+      parameters.ratio = req.model.startsWith("wan3.0-video")
+        ? req.ratio || "adaptive"
+        : req.ratio || "16:9";
+    }
+    if (req.model.startsWith("wan3.0-video") && req.ratio) {
+      parameters.ratio = req.ratio;
     }
     if (req.seed != null) parameters.seed = req.seed;
 
@@ -148,6 +169,40 @@ export const dashscopeAdapter: ProviderAdapter = {
   },
 
   async submitImage(ctx, req: ImageSubmitRequest): Promise<ImageSubmitResult> {
+    if (req.model.startsWith("qwen-image-3.0")) {
+      const data = await call<{
+        output?: { task_id?: string; task_status?: string };
+        code?: string;
+        message?: string;
+        request_id?: string;
+      }>(
+        ctx,
+        "/services/aigc/text2image/image-synthesis",
+        {
+          method: "POST",
+          headers: asyncHeaders(ctx),
+          body: JSON.stringify({
+            model: req.model,
+            input: { prompt: req.prompt },
+            parameters: {
+              size: imageSizeForTier(req.ratio || "1:1", req.resolution || "2K"),
+              n: Math.max(1, Math.min(req.n ?? 1, 4)),
+              prompt_extend: req.promptOptimizer ?? true,
+              watermark: false,
+            },
+          }),
+        },
+        120_000,
+      );
+      if (data.code) {
+        throw new ProviderError(data.message || "千问图像任务创建失败", data.code, 200, data.request_id);
+      }
+      if (!data.output?.task_id) {
+        throw new ProviderError("千问图像没有返回 task_id", "empty", 200, data.request_id);
+      }
+      return { taskId: data.output.task_id };
+    }
+
     const size = IMAGE_SIZES[req.ratio || "1:1"] ?? "1280*1280";
     const data = await call<{
       output?: {
@@ -174,7 +229,9 @@ export const dashscopeAdapter: ProviderAdapter = {
             ],
           },
           parameters: {
-            size,
+            size: req.model.startsWith("wan2.7-image")
+              ? imageSizeForTier(req.ratio || "1:1", req.resolution || "2K")
+              : size,
             n: Math.max(1, Math.min(req.n ?? 1, 4)),
             watermark: false,
             prompt_extend: req.promptOptimizer ?? true,
@@ -198,6 +255,44 @@ export const dashscopeAdapter: ProviderAdapter = {
       throw new ProviderError("百炼图片生成没有返回结果", "empty", 200);
     }
     return { urls };
+  },
+
+  async pollImage(ctx, taskId): Promise<TaskStatus> {
+    const data = await call<{
+      output?: {
+        task_id?: string;
+        task_status?: string;
+        code?: string;
+        message?: string;
+        results?: { url?: string; code?: string; message?: string }[];
+        choices?: { message?: { content?: { image?: string; type?: string }[] } }[];
+      };
+      code?: string;
+      message?: string;
+      usage?: { image_count?: number; width?: number; height?: number };
+    }>(ctx, `/tasks/${encodeURIComponent(taskId)}`, { method: "GET" }, 30_000);
+
+    const raw = String(data.output?.task_status ?? "RUNNING");
+    const status = STATUS_MAP[raw] ?? "running";
+    const urls = [
+      ...(data.output?.results ?? []).map((item) => item.url),
+      ...(data.output?.choices ?? []).flatMap((choice) =>
+        (choice.message?.content ?? []).filter((item) => item.type === "image" || item.image).map((item) => item.image),
+      ),
+    ].filter((url): url is string => Boolean(url));
+
+    return {
+      status,
+      urls: status === "succeeded" ? urls : undefined,
+      error:
+        status === "failed"
+          ? {
+              code: data.output?.code || data.code || raw,
+              message: data.output?.message || data.message || "百炼图片任务失败",
+            }
+          : undefined,
+      usage: data.usage,
+    };
   },
 
   async verify(ctx) {

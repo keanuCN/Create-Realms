@@ -35,6 +35,20 @@ export interface VideoSubmitRequest {
   seed?: number;
 }
 
+export interface VideoSubmitResult {
+  /** 异步 API 返回的任务 ID。 */
+  taskId?: string;
+  /** 同步 API 可直接返回下载地址。 */
+  url?: string;
+  /** 同步 API 可直接返回二进制内容，避免把大文件临时编码进数据库字段。 */
+  data?: Buffer;
+  contentType?: string;
+  resolution?: string;
+  duration?: number;
+  ratio?: string;
+  usage?: Record<string, unknown>;
+}
+
 export type TaskState = "queued" | "running" | "succeeded" | "failed" | "cancelled";
 
 export interface TaskStatus {
@@ -80,7 +94,7 @@ export interface ProviderAdapter {
   supportsImage: boolean;
   /** Image-to-video input format the provider accepts. */
   frameInput?: "base64" | "url" | "both";
-  submitVideo?(ctx: AdapterContext, req: VideoSubmitRequest): Promise<{ taskId: string }>;
+  submitVideo?(ctx: AdapterContext, req: VideoSubmitRequest): Promise<VideoSubmitResult>;
   pollVideo?(ctx: AdapterContext, taskId: string): Promise<TaskStatus>;
   submitImage?(ctx: AdapterContext, req: ImageSubmitRequest): Promise<ImageSubmitResult>;
   pollImage?(ctx: AdapterContext, taskId: string): Promise<TaskStatus>;

@@ -11,6 +11,7 @@ import {
   Wand2,
 } from "lucide-react";
 import { AssetCard, AssetViewer } from "@/components/asset-card";
+import { BalanceQuickButton } from "@/components/balance-quick-button";
 import { ImageDrop, MultiImageDrop, type UploadedImage } from "@/components/studio/image-drop";
 import {
   Badge,
@@ -89,13 +90,18 @@ export default function Studio({ displayName }: { displayName: string }) {
   const currentReady = providerReady[provider] !== false;
 
   useEffect(() => {
-    api<{ providers: { id: string; configured: boolean; enabled: boolean; source: string }[] }>(
-      "/api/health",
-    )
+    api<{
+      items: {
+        id: string;
+        status: "ready" | "planned";
+        configured: boolean;
+        enabled: boolean;
+      }[];
+    }>("/api/my/providers")
       .then((data) => {
         const map: Record<string, boolean> = {};
-        for (const item of data.providers ?? []) {
-          map[item.id] = item.configured && item.enabled;
+        for (const item of data.items ?? []) {
+          map[item.id] = item.configured && item.enabled && item.status === "ready";
         }
         setProviderReady(map);
         setStats((prev) => ({
@@ -143,7 +149,6 @@ export default function Studio({ displayName }: { displayName: string }) {
     if (spec.defaultDuration) setDuration(spec.defaultDuration);
     if (spec.defaultRatio) setRatio(spec.defaultRatio);
     setAudioOn(spec.audioDefault ?? false);
-    setVideoOptimizer(true);
     setVideoCount(1);
     setReferences([]);
     setFirstFrame(null);
@@ -364,7 +369,7 @@ export default function Studio({ displayName }: { displayName: string }) {
         className="w-full"
         loading={submitting}
         onClick={submit}
-        disabled={!prompt.trim() || !currentReady}
+        disabled={!prompt.trim() || !currentReady || model.availability === "coming-soon"}
       >
         <Sparkles className="size-4" />
         {tab === "video"
@@ -391,10 +396,21 @@ export default function Studio({ displayName }: { displayName: string }) {
           <div className="flex items-center gap-2 text-[11px] text-slate-400">
             <StatPill label="我的作品" value={stats.assets} />
             <StatPill label="在用供应商" value={stats.providers} />
-            <StatPill label="可用模型" value={MODELS.length} />
+            <StatPill
+              label="可用模型"
+              value={MODELS.filter((entry) => entry.availability !== "coming-soon").length}
+            />
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <BalanceQuickButton />
+          <Link
+            href="/guide"
+            className="lift inline-flex h-8 items-center gap-1 rounded-lg border border-white/12 bg-white/[0.06] px-3 text-[13px] text-slate-200 backdrop-blur transition hover:border-[#7c6cff]/40 hover:text-white"
+          >
+            <BookOpen className="size-3.5" />
+            提示词教程
+          </Link>
           <Button variant="secondary" size="sm" onClick={openTemplates}>
             <BookOpen className="size-3.5" />
             提示词模板
@@ -450,9 +466,10 @@ export default function Studio({ displayName }: { displayName: string }) {
                   return (
                     <button
                       key={item}
+                      data-active={active}
                       onClick={() => pickProvider(item)}
                       className={cn(
-                        "lift flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[12px]",
+                        "studio-choice lift flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[12px]",
                         active
                           ? "text-white"
                           : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-slate-200",
@@ -486,26 +503,31 @@ export default function Studio({ displayName }: { displayName: string }) {
               <div className="flex flex-wrap gap-1.5">
                 {modelOptions.map((item) => {
                   const active = modelId === item.id;
+                  const unavailable = item.availability === "coming-soon";
                   const color = providerColor(item.provider);
                   const tag = priceTag(item, item.defaultResolution);
                   const table = priceTable(item);
                   return (
                     <button
                       key={item.id}
+                      data-active={active && !unavailable}
                       onClick={() => pickModel(item.id)}
+                      disabled={unavailable}
                       data-tip={
                         table.length
                           ? `${item.tagline}\n参考单价：${table.join(" · ")}\n（${PRICING_AS_OF} 调研，以控制台为准）`
                           : `${item.tagline}\n参考单价：见控制台`
                       }
                       className={cn(
-                        "tip lift flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[12px] font-medium",
-                        active
+                        "studio-choice tip lift flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[12px] font-medium",
+                        unavailable
+                          ? "cursor-not-allowed border-white/[0.05] bg-white/[0.015] text-slate-600 opacity-60"
+                          : active
                           ? "text-white"
                           : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-slate-200",
                       )}
                       style={
-                        active
+                        active && !unavailable
                           ? {
                               borderColor: color.from,
                               background: "var(--brand)",
@@ -516,12 +538,17 @@ export default function Studio({ displayName }: { displayName: string }) {
                     >
                       <span
                         className="provider-dot"
-                        style={{ background: color.from, color: color.from }}
+                        style={{ background: unavailable ? "#475569" : color.from, color: unavailable ? "#475569" : color.from }}
                       />
                       {item.label}
                       {item.badge ? (
-                        <span className="rounded-full bg-[#7c6cff]/25 px-1.5 py-px text-[10px] text-[#c9c2ff]">
-                          {item.badge}
+                        <span className={cn(
+                          "rounded-full px-1.5 py-px text-[10px]",
+                          unavailable
+                            ? "bg-slate-700/50 text-slate-500"
+                            : "bg-[#7c6cff]/25 text-[#c9c2ff]",
+                        )}>
+                          {unavailable ? "暂未开放" : item.badge}
                         </span>
                       ) : null}
                       {tag ? (
@@ -559,7 +586,7 @@ export default function Studio({ displayName }: { displayName: string }) {
                   size="sm"
                   loading={optimizingPrompt}
                   disabled={!prompt.trim() || submitting}
-                  title="使用 MiniMax 文本模型优化并替换当前提示词"
+                  title="使用团队共享的 DeepSeek 模型优化并替换当前提示词"
                   onClick={() => void optimizePrompt()}
                   className="h-7 px-2.5 text-[11px]"
                 >

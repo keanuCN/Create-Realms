@@ -1,0 +1,488 @@
+Kling AI API API Video 2 5 Turbo Text To Video Legacy
+【更新通知】Kling 4.0 API 正式首发，可灵邀你一起解锁模型新体验！
+查看详情
+前往购买
+控制台
+开发者指南
+API
+在线体验
+价格
+更新公告
+开始
+接口鉴权
+错误码
+并发说明
+回调协议
+Kling Skills
+基础能力API
+视频
+Kling 3.0 Turbo
+NEW
+Kling 3.0 & 3.0 Omni
+HOT
+Kling O1
+Kling 2.6
+Kling 2.5 Turbo
+动作控制
+HOT
+多模态视频参考编辑
+数字人
+音频生成
+查看更多模型
+图片
+解决方案API
+特效
+一键换装
+商品成片
+字幕译制
+口播带货
+NEW
+虚拟试穿
+NEW
+资产管理API
+抵扣明细查询
+账号信息查询
+Kling 2.5 Turbo
+文生视频
+图生视频
+文生视频
+返回新版
+创建任务
+POST
+/v1/videos/text2video
+cURL
+复制
+折叠
+curl --request POST \
+  --url https://api-beijing.klingai.com/v1/videos/text2video \
+  --header 'Authorization: Bearer <token>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "model_name": "kling-v2-6",
+    "prompt": "一只可爱的小兔子，戴着眼镜，坐在桌边，看报纸，桌上放着一杯卡布奇诺",
+    "negative_prompt": "",
+    "duration": "5",
+    "mode": "pro",
+    "sound": "on",
+    "aspect_ratio": "1:1",
+    "callback_url": "",
+    "external_task_id": ""
+  }'
+200
+复制
+折叠
+{
+  "code": 0, // 错误码；具体定义见错误码
+  "message": "string", // 错误信息
+  "request_id": "string", // 请求ID，系统生成，用于跟踪请求、排查问题
+  "data": {
+    "task_id": "string", // 任务ID，系统生成
+    "task_info": { // 任务创建时的参数信息
+      "external_task_id": "string" // 客户自定义任务ID
+    },
+    "task_status": "string", // 任务状态，枚举值：submitted（已提交）、processing（处理中）、succeed（成功）、failed（失败）
+    "created_at": 1722769557708, // 任务创建时间，Unix时间戳、单位ms
+    "updated_at": 1722769557708 // 任务更新时间，Unix时间戳、单位ms
+  }
+}
+💡
+
+请您注意，为了保持命名统一，原 model 字段变更为 model_name字段，未来请您使用该字段来指定需要调用的模型版本。
+同时，我们保持了行为上的向前兼容，如您继续使用原 model字段，不会对接口调用有任何影响、不会有任何异常，等价于 model_name为空时的默认行为（即调用V1模型）
+
+请求头
+Content-Type
+string
+必填
+默认值 application/json
+
+数据交换格式
+
+Authorization
+string
+必填
+
+鉴权信息，参考接口鉴权
+
+请求体
+model_name
+string
+必填
+
+模型名称
+
+枚举值：
+kling-v2-5-turbo
+kling-v2-6
+kling-v3
+multi_shot
+boolean
+可选
+默认值 false
+
+是否生成多镜头视频
+
+当前参数为 true 时，prompt 参数无效，且不支持设定首尾帧生视频。
+
+当前参数为 false 时，shot_type 参数及 multi_prompt 参数无效
+
+shot_type
+string
+可选
+
+分镜方式
+
+枚举值：
+customize
+intelligence
+
+当 multi_shot 参数为 true 时，当前参数必填
+
+prompt
+string
+可选
+
+正向文本提示词
+
+💡
+
+Omni模型可通过Prompt与主体、图片、视频等内容实现多种能力：
+
+通过<<<>>>的格式来指定某个主体、图片或视频，如：<<<element_1>>>、<<<image_1>>>、<<<video_1>>>
+能力范围详见使用手册：可灵Omni模型使用指南、可灵视频 3.0 Omni 使用指南
+不能超过 2500 个字符
+用 <<<voice_1>>> 来指定音色，序号同 voice_list；至多引用 2 个音色；指定音色时 sound 必须为 on；语法结构越简单越好，如：男人<<<voice_1>>>说：“你好”；
+-voice_list 不为空且 prompt 引用音色 ID 时按「有指定音色」计费
+当 multi_shot 为 false 或 shot_type 为 intelligence 时不得为空。
+
+不同模型版本、视频模式支持范围不同，详见 能力地图
+
+multi_prompt
+array
+可选
+
+各分镜提示词，可包含正向描述和负向描述
+
+通过 index、prompt、duration 定义分镜序号及提示词、时长。
+
+最多支持6个分镜，最小支持1个分镜；
+每个分镜相关内容的最大长度不超过512；
+每个分镜的时长不大于当前任务的总时长，不小于1；
+所有分镜的时长之和等于当前任务的总时长;
+
+用key:value承载，格式如下：
+
+"multi_prompt":[
+{"index":int,"prompt":"string","duration":"5"},
+{"index":int,"prompt":"string","duration":"5"}
+]
+
+当 multi_shot 为 true 且 shot_type 为 customize 时必填
+
+negative_prompt
+string
+可选
+
+负向文本提示词
+
+不能超过 2500 个字符
+建议通过正向提示词中的负向句子补充负向提示信息
+sound
+string
+可选
+默认值 off
+
+生成视频时是否同时生成声音
+
+枚举值：
+on
+off
+
+不同模型版本、视频模式支持范围不同，详见 能力地图
+
+mode
+string
+可选
+默认值 std
+
+视频生成模式
+
+枚举值：
+std
+pro
+4k
+std：标准模式（标准），基础模式，性价比高，输出视频分辨率为720P。
+pro：专家模式（高品质），高表现模式，生成视频质量更佳，输出视频分辨率为1080P。
+4k：4K模式，高表现（同pro），生成视频质量更佳，输出视频分辨率为4K。
+
+不同模型版本、视频模式支持范围不同，详见 能力地图
+
+aspect_ratio
+string
+可选
+默认值 16:9
+
+生成视频帧的宽高比（宽:高）
+
+枚举值：
+16:9
+9:16
+1:1
+duration
+string
+可选
+默认值 5
+
+视频长度，单位：秒
+
+枚举值：
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+
+不同模型版本、视频模式支持范围不同，详见 能力地图
+
+watermark_info
+object
+可选
+
+是否同时生成含水印的结果
+
+通过enabled参数定义，具体格式如下：
+ "watermark_info": { "enabled": boolean }
+true 为生成，false 为不生成
+暂不支持自定义水印
+callback_url
+string
+可选
+
+本次任务结果回调通知地址，如果配置，服务端会在任务状态发生变更时主动通知
+
+具体通知的消息 schema 见 Callback 协议
+external_task_id
+string
+可选
+
+自定义任务ID
+
+用户自定义任务ID，传入不会覆盖系统生成的任务ID，但支持通过该ID进行任务查询
+请注意，单用户下需要保证唯一性
+更多场景调用示例
+多镜头效果的文生视频
+curl --location 'https://xxx/v1/videos/text2video' \
+--header 'Authorization: Bearer xxx' \
+--header 'Content-Type: application/json' \
+--data '{
+    "model_name": "kling-v3",
+    "prompt": "",
+    "multi_prompt": [
+        {
+            "index": 1,
+            "prompt": "Two friends talking under a streetlight at night.  Warm glow, casual poses, no dialogue.",
+            "duration": "2"
+        },
+        {
+            "index": 2,
+            "prompt": "A runner sprinting through a forest, leaves flying.  Low-angle shot, focus on movement.",
+            "duration": "3"
+        },
+        {
+            "index": 3,
+            "prompt": "A woman hugging a cat, smiling.  Soft sunlight, cozy home setting, emphasize warmth.",
+            "duration": "3"
+        },
+        {
+            "index": 4,
+            "prompt": "A door creaking open, shadowy hallway.  Dark tones, minimal details, eerie mood.",
+            "duration": "3"
+        },
+        {
+            "index": 5,
+            "prompt": "A man slipping on a banana peel, shocked expression.  Exaggerated pose, bright colors.",
+            "duration": "3"
+        },
+        {
+            "index": 6,
+            "prompt": "A sunset over mountains, small figure walking away.  Wide angle, peaceful atmosphere.",
+            "duration": "1"
+        }
+    ],
+    "multi_shot": true,
+    "shot_type": "customize",
+    "duration": "15",
+    "mode": "pro",
+    "sound": "on",
+    "aspect_ratio": "9:16",
+    "callback_url": "",
+    "external_task_id": ""
+}'
+查询任务（单个）
+GET
+/v1/videos/text2video/{id}
+cURL
+复制
+折叠
+curl --request GET \
+  --url https://api-beijing.klingai.com/v1/videos/text2video/{task_id} \
+  --header 'Authorization: Bearer <token>'
+200
+复制
+折叠
+{
+  "code": 0, // 错误码；具体定义见错误码
+  "message": "string", // 错误信息
+  "request_id": "string", // 请求ID，系统生成，用于跟踪请求、排查问题
+  "data": {
+    "task_id": "string", // 任务ID，系统生成
+    "task_status": "string", // 任务状态，枚举值：submitted（已提交）、processing（处理中）、succeed（成功）、failed（失败）
+    "task_status_msg": "string", // 任务状态信息，当任务失败时展示失败原因（如触发平台的内容风控等）
+    "task_info": { // 任务创建时的参数信息
+      "external_task_id": "string" // 客户自定义任务ID
+    },
+    "task_result": {
+      "videos": [
+        {
+          "id": "string", // 生成的视频ID；全局唯一
+          "url": "string", // 生成视频的URL（请注意，为保障信息安全，生成的图片/视频会在30天后被清理，请及时转存）
+          "watermark_url": "string", // 含水印视频下载URL，防盗链格式
+          "duration": "string" // 视频总时长，单位s
+        }
+      ]
+    },
+    "watermark_info": {
+      "enabled": boolean
+    },
+    "final_unit_deduction": "string", // 任务最终扣减积分数值
+    "final_balance_deduction": { // 额度扣减信息
+      "quota": "string", // 额度扣减折扣价
+      "list_price": "string" // 额度扣减刊例价
+    },
+    "created_at": 1722769557708, // 任务创建时间，Unix时间戳、单位ms
+    "updated_at": 1722769557708 // 任务更新时间，Unix时间戳、单位ms
+  }
+}
+请求头
+Content-Type
+string
+必填
+默认值 application/json
+
+数据交换格式
+
+Authorization
+string
+必填
+
+鉴权信息，参考接口鉴权
+
+路径参数
+task_id
+string
+可选
+
+文生视频的任务ID。直接在请求路径中填写值，与external_task_id两种查询方式二选一
+
+external_task_id
+string
+可选
+
+文生视频的自定义任务ID。直接在请求路径中填写值，与task_id两种查询方式二选一
+
+查询任务（列表）
+GET
+/v1/videos/text2video
+cURL
+复制
+折叠
+curl --request GET \
+  --url 'https://api-beijing.klingai.com/v1/videos/text2video?pageNum=1&pageSize=30' \
+  --header 'Authorization: Bearer <token>'
+200
+复制
+折叠
+{
+  "code": 0, // 错误码；具体定义见错误码
+  "message": "string", // 错误信息
+  "request_id": "string", // 请求ID，系统生成，用于跟踪请求、排查问题
+  "data": [
+    {
+      "task_id": "string", // 任务ID，系统生成
+      "task_status": "string", // 任务状态，枚举值：submitted（已提交）、processing（处理中）、succeed（成功）、failed（失败）
+      "task_status_msg": "string", // 任务状态信息，当任务失败时展示失败原因（如触发平台的内容风控等）
+      "task_info": { // 任务创建时的参数信息
+        "external_task_id": "string" // 客户自定义任务ID
+      },
+      "task_result": {
+        "videos": [
+          {
+            "id": "string", // 生成的视频ID；全局唯一
+            "url": "string", // 生成视频的URL（请注意，为保障信息安全，生成的图片/视频会在30天后被清理，请及时转存）
+            "watermark_url": "string", // 含水印视频下载URL，防盗链格式
+            "duration": "string" // 视频总时长，单位s
+          }
+        ]
+      },
+      "watermark_info": {
+        "enabled": boolean
+      },
+      "final_unit_deduction": "string", // 任务最终扣减积分数值
+      "final_balance_deduction": { // 额度扣减信息
+        "quota": "string", // 额度扣减折扣价
+        "list_price": "string" // 额度扣减刊例价
+      },
+      "created_at": 1722769557708, // 任务创建时间，Unix时间戳、单位ms
+      "updated_at": 1722769557708 // 任务更新时间，Unix时间戳、单位ms
+    }
+  ]
+}
+请求头
+Content-Type
+string
+必填
+默认值 application/json
+
+数据交换格式
+
+Authorization
+string
+必填
+
+鉴权信息，参考接口鉴权
+
+查询参数
+pageNum
+int
+可选
+默认值 1
+
+页码
+
+取值范围：[1, 1000]
+pageSize
+int
+可选
+默认值 30
+
+每页条数
+
+取值范围：[1, 500]
+Kling 2.6 - 音色管理
+Kling 2.5 Turbo - 图生视频
+创建任务
+更多场景调用示例
+查询任务（单个）
+查询任务（列表）
+联
+系
+我
+们

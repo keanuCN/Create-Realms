@@ -11,6 +11,7 @@ import {
   Play,
   RefreshCw,
   Trash2,
+  Users,
 } from "lucide-react";
 import { Badge, Button, OrbitLoader, cn, useToast } from "@/components/ui";
 import { PRICING_AS_OF, estimateCost, getModel } from "@/lib/models";
@@ -92,10 +93,12 @@ export function AssetThumb({ asset }: { asset: AssetWithUser }) {
 
 export function AssetCard({
   asset,
+  canManage = true,
   onOpen,
   onChanged,
 }: {
   asset: AssetWithUser;
+  canManage?: boolean;
   onOpen?: (asset: AssetWithUser) => void;
   onChanged?: () => void;
 }) {
@@ -129,6 +132,23 @@ export function AssetCard({
       onChanged?.();
     } catch (error) {
       toast(error instanceof Error ? error.message : "分享失败", "error");
+    }
+  }
+
+  async function toggleTeamVisibility(event: React.MouseEvent) {
+    event.stopPropagation();
+    setBusy(true);
+    try {
+      await api(`/api/assets/${asset.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ isPublic: !asset.isPublic }),
+      });
+      toast(asset.isPublic ? "已从团队视频库撤回" : "已发布到团队视频库", "success");
+      onChanged?.();
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "更新失败", "error");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -183,19 +203,19 @@ export function AssetCard({
       <div className="relative aspect-square w-full overflow-hidden">
         <AssetThumb asset={asset} />
 
-        <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 bg-gradient-to-b from-black/60 to-transparent p-2.5 opacity-0 transition group-hover:opacity-100">
+        <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 bg-gradient-to-b from-black/60 to-transparent p-2 opacity-0 transition group-hover:opacity-100">
           <Badge
             tone={asset.kind === "video" ? "brand" : "default"}
             className={asset.kind === "video" ? "asset-video-badge" : undefined}
           >
             {asset.kind === "video" ? "视频" : "图片"}
           </Badge>
-          <div className="flex items-center gap-1">
+          <div className="grid w-[76px] shrink-0 grid-cols-3 gap-1">
             <button
               onClick={toggleFavorite}
               disabled={busy}
               className={cn(
-                "asset-action-icon tip grid size-7 place-items-center rounded-lg transition hover:scale-110",
+                "asset-action-icon tip grid size-6 shrink-0 place-items-center rounded-lg transition hover:scale-110",
                 asset.isFavorite && "asset-action-favorite",
               )}
               data-tip={asset.isFavorite ? "取消收藏" : "收藏"}
@@ -204,16 +224,29 @@ export function AssetCard({
             </button>
             {asset.status === "succeeded" ? (
               <>
+                {asset.kind === "video" && canManage ? (
+                  <button
+                    onClick={toggleTeamVisibility}
+                    disabled={busy}
+                    className={cn(
+                      "asset-action-icon tip grid size-6 shrink-0 place-items-center rounded-lg transition hover:scale-110",
+                      asset.isPublic && "text-emerald-300",
+                    )}
+                    data-tip={asset.isPublic ? "从团队视频库撤回" : "发布到团队视频库"}
+                  >
+                    <Users className="size-3.5" />
+                  </button>
+                ) : null}
                 <button
                   onClick={download}
-                  className="asset-action-icon tip grid size-7 place-items-center rounded-lg transition hover:scale-110"
+                  className="asset-action-icon tip grid size-6 shrink-0 place-items-center rounded-lg transition hover:scale-110"
                   data-tip="下载"
                 >
                   <Download className="size-3.5" />
                 </button>
                 <button
                   onClick={share}
-                  className="asset-action-icon tip grid size-7 place-items-center rounded-lg transition hover:scale-110"
+                  className="asset-action-icon tip grid size-6 shrink-0 place-items-center rounded-lg transition hover:scale-110"
                   data-tip="复制分享链接"
                 >
                   <Link2 className="size-3.5" />
@@ -224,7 +257,7 @@ export function AssetCard({
               <button
                 onClick={retry}
                 disabled={busy}
-                className="asset-action-icon tip grid size-7 place-items-center rounded-lg transition hover:scale-110"
+                className="asset-action-icon tip grid size-6 shrink-0 place-items-center rounded-lg transition hover:scale-110"
                 data-tip="重试"
               >
                 <RefreshCw className="size-3.5" />
@@ -233,7 +266,7 @@ export function AssetCard({
             <button
               onClick={remove}
               disabled={busy}
-              className="asset-action-icon asset-action-danger tip grid size-7 place-items-center rounded-lg transition hover:scale-110"
+              className="asset-action-icon asset-action-danger tip grid size-6 shrink-0 place-items-center rounded-lg transition hover:scale-110"
               data-tip="删除"
             >
               <Trash2 className="size-3.5" />
