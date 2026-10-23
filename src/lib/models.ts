@@ -50,6 +50,8 @@ export const PROVIDER_LABELS: Record<string, string> = {
   pixverse: "PixVerse",
   vidu: "Vidu",
   dashscope: "通义万相 / HappyHorse",
+  openai: "OpenAI",
+  google: "Google Gemini",
 };
 
 export const PROVIDER_ORDER = [
@@ -59,6 +61,8 @@ export const PROVIDER_ORDER = [
   "pixverse",
   "vidu",
   "dashscope",
+  "openai",
+  "google",
 ];
 
 const WIDE_RATIOS = ["16:9", "9:16", "1:1", "4:3", "3:4", "21:9"];
@@ -392,6 +396,61 @@ export const MODELS: ModelSpec[] = [
     maxPrompt: 2000,
     maxImages: 4,
   },
+
+  /* ------------------------- OpenAI GPT Image ------------------------- */
+  {
+    id: "gpt-image-2.5-flare",
+    provider: "openai",
+    modality: "image",
+    label: "GPT Image 2.5 Flare",
+    tagline: "文生图 / 参考图编辑 · 快速高质量",
+    badge: "推荐",
+    resolutions: ["1K"],
+    defaultResolution: "1K",
+    ratios: ["1:1", "3:2", "2:3"],
+    defaultRatio: "1:1",
+    maxPrompt: 4000,
+    maxImages: 4,
+  },
+
+  /* ------------------------- Google Gemini ------------------------- */
+  {
+    id: "gemini-nano-banana-2.1",
+    provider: "google",
+    modality: "image",
+    label: "Nano Banana 2.1",
+    tagline: "Gemini 文生图 / 参考图编辑 · 最高 4K",
+    badge: "推荐",
+    resolutions: ["1K", "2K", "4K"],
+    defaultResolution: "1K",
+    ratios: ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3"],
+    defaultRatio: "1:1",
+    maxPrompt: 4000,
+    maxImages: 4,
+  },
+  {
+    id: "gemini-omni-1.1-flash",
+    provider: "google",
+    modality: "video",
+    label: "Gemini Omni Flash",
+    tagline: "Gemini 音画生成 · 首尾帧 / 参考图 · 360p–4K",
+    badge: "推荐",
+    resolutions: ["720p", "1080p", "4k", "360p"],
+    defaultResolution: "720p",
+    durationList: [5, 8, 10],
+    defaultDuration: 8,
+    ratios: ["16:9", "9:16"],
+    defaultRatio: "16:9",
+    supportsFrames: true,
+    supportsLastFrame: true,
+    supportsReferenceImages: true,
+    maxReferenceImages: 3,
+    supportsAudio: true,
+    audioDefault: true,
+    maxVideos: 4,
+    maxPrompt: 4000,
+    note: "时长按提示词向 Gemini 表达，结果以模型实际输出为准",
+  },
 ];
 
 export function getModel(id: string): ModelSpec | undefined {
@@ -443,4 +502,212 @@ export function durationOptions(model: ModelSpec): number[] {
   const list: number[] = [];
   for (let value = range.min; value <= range.max; value += step) list.push(value);
   return list;
+}
+
+/* -------------------------------------------------------------------------- */
+/* 参考单价                                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * 价格调研时间。页面会标注这个日期，避免被当成实时报价。
+ */
+export const PRICING_AS_OF = "2026-10-23";
+const USD_TO_CNY = 6.718;
+
+/**
+ * 参考单价。内部保留各平台原生计费单位，展示时统一换算成人民币：
+ * - MiniMax 国际站：按 2026-10-23 中国银行美元中间价换算
+ * - 可灵积分：按 1 积分约 1 元换算
+ * - Vidu 积分：按官方标注 1 积分 = 0.03125 元换算
+ * - 通义万相：人民币原价
+ * 未收录的模型（火山方舟、HappyHorse、OpenAI、Google 等）界面上提示「见控制台」。
+ */
+export interface ModelPricing {
+  /** 计费维度 */
+  unit: "second" | "image";
+  /** 显示单位：$ / ¥ / 积分 */
+  symbol: string;
+  /** 一个原生计费单位对应的人民币金额 */
+  rmbPerUnit: number;
+  /** 按分辨率给出的单价，键与 ModelSpec.resolutions 对应 */
+  byResolution?: Record<string, number>;
+  /** 与分辨率无关的单一价格 */
+  flat?: number;
+  /** 换算关系、是否含音频等补充说明 */
+  note?: string;
+}
+
+const PRICING: Record<string, ModelPricing> = {
+  "MiniMax-H3-Max": {
+    unit: "second",
+    symbol: "$",
+    rmbPerUnit: USD_TO_CNY,
+    byResolution: { "768P": 0.08, "480P": 0.05 },
+    note: "按国际站美元参考价折算人民币；国内站以控制台为准，参考图超出免费张数另计",
+  },
+  "MiniMax-H3": {
+    unit: "second",
+    symbol: "$",
+    rmbPerUnit: USD_TO_CNY,
+    byResolution: { "768P": 0.08, "2K": 0.13 },
+    note: "按国际站美元参考价折算人民币；国内站以控制台为准",
+  },
+  "image-01": {
+    unit: "image",
+    symbol: "$",
+    rmbPerUnit: USD_TO_CNY,
+    flat: 0.0035,
+    note: "按国际站美元参考价折算人民币",
+  },
+  "kling-3.0": {
+    unit: "second",
+    symbol: "积分",
+    rmbPerUnit: 1,
+    byResolution: { "720p": 0.6, "1080p": 0.8, "4k": 3.0 },
+    note: "无声参考价；开启音频后费用更高",
+  },
+  "kling-2.6": {
+    unit: "second",
+    symbol: "积分",
+    rmbPerUnit: 1,
+    byResolution: { "720p": 0.3, "1080p": 0.5 },
+    note: "无声参考价",
+  },
+  "kling-3.0-turbo": {
+    unit: "second",
+    symbol: "积分",
+    rmbPerUnit: 1,
+    byResolution: { "720p": 0.8, "1080p": 1.0 },
+    note: "人民币参考价",
+  },
+  v6: {
+    unit: "second",
+    symbol: "积分",
+    rmbPerUnit: USD_TO_CNY / 225,
+    byResolution: { "720p": 9 },
+    note: "静音约 ¥0.27/秒，开音频约 ¥0.36/秒；按平台外币折算，仅作参考",
+  },
+  "viduq3-pro": {
+    unit: "second",
+    symbol: "积分",
+    rmbPerUnit: 0.03125,
+    byResolution: { "1080p": 24, "720p": 20, "540p": 9 },
+    note: "错峰（off_peak）半价，具体以平台控制台为准",
+  },
+  "wan2.7-t2v": {
+    unit: "second",
+    symbol: "¥",
+    rmbPerUnit: 1,
+    byResolution: { "720P": 0.6, "1080P": 1.0 },
+    note: "人民币按秒计费",
+  },
+};
+
+export function pricingFor(modelId: string): ModelPricing | undefined {
+  return PRICING[modelId];
+}
+
+/** 指定分辨率下的单价；未收录返回 null */
+export function unitPriceFor(model: ModelSpec, resolution?: string): number | null {
+  const pricing = pricingFor(model.id);
+  if (!pricing) return null;
+  if (pricing.flat != null) return pricing.flat;
+  if (!pricing.byResolution) return null;
+  const key = resolution && pricing.byResolution[resolution] != null ? resolution : null;
+  if (!key) return null;
+  return pricing.byResolution[key];
+}
+
+function trimNumber(value: number): string {
+  const fixed =
+    value >= 1 ? value.toFixed(2) : value >= 0.01 ? value.toFixed(3) : value.toFixed(4);
+  return fixed.replace(/0+$/, "").replace(/\.$/, "");
+}
+
+/** 所有参考金额统一显示为人民币。 */
+function formatRmb(value: number): string {
+  return `¥${trimNumber(value)}`;
+}
+
+export function priceUnitLabel(pricing: ModelPricing): string {
+  return pricing.unit === "second" ? "秒" : "张";
+}
+
+/** 模型胶囊上的单价标签，如「$0.08/秒」 */
+export function priceTag(model: ModelSpec, resolution?: string): string | null {
+  const pricing = pricingFor(model.id);
+  const unit = unitPriceFor(model, resolution);
+  if (!pricing || unit == null) return null;
+  return `${formatRmb(unit * pricing.rmbPerUnit)}/${priceUnitLabel(pricing)}`;
+}
+
+/** 该模型所有已收录档位的价格，用于悬停说明 */
+export function priceTable(model: ModelSpec): string[] {
+  const pricing = pricingFor(model.id);
+  if (!pricing) return [];
+  const unit = priceUnitLabel(pricing);
+  if (pricing.flat != null) {
+    return [`${formatRmb(pricing.flat * pricing.rmbPerUnit)}/${unit}`];
+  }
+  return Object.entries(pricing.byResolution ?? {}).map(
+    ([key, value]) => `${key} ${formatRmb(value * pricing.rmbPerUnit)}/${unit}`,
+  );
+}
+
+export interface CostEstimate {
+  /** 是否算得出金额（没有收录价格时为 false） */
+  priced: boolean;
+  /** 简短金额，统一人民币显示 */
+  text: string;
+  /** 明细，如「$0.08/秒 × 5 秒 × 1 条」 */
+  detail: string;
+  /** 换算与出处的补充说明 */
+  note?: string;
+}
+
+/**
+ * 估算本次提交的花费。价格缺失时返回 priced=false，界面提示去控制台确认。
+ */
+export function estimateCost(
+  model: ModelSpec,
+  options: { resolution?: string; duration?: number; count: number },
+): CostEstimate {
+  const pricing = pricingFor(model.id);
+  const count = Math.max(1, options.count || 1);
+
+  if (!pricing) {
+    return {
+      priced: false,
+      text: "见控制台",
+      detail: "该模型的价格尚未收录，请以平台控制台为准",
+    };
+  }
+
+  const unit = unitPriceFor(model, options.resolution);
+  if (unit == null) {
+    return {
+      priced: false,
+      text: "见控制台",
+      detail: options.resolution
+        ? `${options.resolution} 档的价格尚未收录，请以平台控制台为准`
+        : "该档位价格尚未收录，请以平台控制台为准",
+      note: pricing.note,
+    };
+  }
+
+  const quantity =
+    pricing.unit === "second" ? (options.duration ?? 0) * count : count;
+  const amount = unit * quantity;
+  const unitLabel = priceUnitLabel(pricing);
+  const detail =
+    pricing.unit === "second"
+      ? `${formatRmb(unit * pricing.rmbPerUnit)}/${unitLabel} × ${options.duration ?? 0} 秒 × ${count} 条`
+      : `${formatRmb(unit * pricing.rmbPerUnit)}/${unitLabel} × ${count} 张`;
+
+  return {
+    priced: true,
+    text: formatRmb(amount * pricing.rmbPerUnit),
+    detail,
+    note: pricing.note,
+  };
 }

@@ -27,7 +27,18 @@ import {
   useToast,
 } from "@/components/ui";
 import { api } from "@/lib/client";
-import { MODELS, durationOptions, getModel, modelsFor, providerLabel, providersForModality } from "@/lib/models";
+import {
+  MODELS,
+  PRICING_AS_OF,
+  durationOptions,
+  estimateCost,
+  getModel,
+  modelsFor,
+  priceTable,
+  priceTag,
+  providerLabel,
+  providersForModality,
+} from "@/lib/models";
 import { providerColor } from "@/lib/provider-colors";
 import type { AssetWithUser, PromptTemplate } from "@/lib/types";
 
@@ -48,19 +59,17 @@ export default function Studio({ displayName }: { displayName: string }) {
   const [provider, setProvider] = useState("minimax");
   const [modelId, setModelId] = useState("MiniMax-H3-Max");
   const [prompt, setPrompt] = useState("");
+  const [optimizingPrompt, setOptimizingPrompt] = useState(false);
   const [resolution, setResolution] = useState("768P");
   const [duration, setDuration] = useState(5);
   const [ratio, setRatio] = useState("16:9");
-  const [expansion, setExpansion] = useState<"disabled" | "balanced" | "quality">("balanced");
   const [firstFrame, setFirstFrame] = useState<UploadedImage | null>(null);
   const [lastFrame, setLastFrame] = useState<UploadedImage | null>(null);
   const [count, setCount] = useState(1);
-  const [optimizer, setOptimizer] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   // 视频专用
   const [videoCount, setVideoCount] = useState(1);
   const [audioOn, setAudioOn] = useState(true);
-  const [videoOptimizer, setVideoOptimizer] = useState(true);
   const [references, setReferences] = useState<UploadedImage[]>([]);
   const [inputMode, setInputMode] = useState<"text" | "first" | "firstLast" | "reference">("text");
 
@@ -217,10 +226,10 @@ export default function Studio({ displayName }: { displayName: string }) {
               ...(model.supportsPromptOptimizer
                 ? modelId === "MiniMax-H3-Max"
                   ? {
-                      promptExpansion: expansion,
-                      promptOptimizer: expansion !== "disabled",
+                      promptExpansion: "balanced",
+                      promptOptimizer: true,
                     }
-                  : { promptOptimizer: videoOptimizer }
+                  : { promptOptimizer: true }
                 : {}),
               ...(firstFrame || lastFrame
                 ? {
@@ -237,7 +246,7 @@ export default function Studio({ displayName }: { displayName: string }) {
               prompt,
               ratio,
               n: count,
-              promptOptimizer: optimizer,
+              promptOptimizer: true,
               ...(model.resolutions?.length ? { resolution } : {}),
             };
 
@@ -264,9 +273,36 @@ export default function Studio({ displayName }: { displayName: string }) {
   }
 
   const charLimit = model.maxPrompt;
+
+  async function optimizePrompt() {
+    const source = prompt.trim();
+    if (!source) {
+      toast("先写点提示词吧", "error");
+      return;
+    }
+
+    setOptimizingPrompt(true);
+    try {
+      const result = await api<{ prompt: string }>("/api/prompts/optimize", {
+        method: "POST",
+        body: JSON.stringify({ kind: tab, model: model.id, prompt: source }),
+      });
+      setPrompt(result.prompt);
+      toast("提示词已优化并替换原文", "success");
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "提示词优化失败", "error");
+    } finally {
+      setOptimizingPrompt(false);
+    }
+  }
   const withFrames = Boolean(firstFrame || lastFrame);
   const ratios = model.ratios ?? ["16:9"];
   const durationChoices = durationOptions(model);
+  const cost = estimateCost(model, {
+    resolution,
+    duration: tab === "video" ? duration : undefined,
+    count: tab === "video" ? videoCount : count,
+  });
 
   /** 操作条：宽屏钉在表单底部，窄屏浮动在视口底部，保证提交按钮永远可见 */
   const actionBar = (
@@ -314,6 +350,13 @@ export default function Studio({ displayName }: { displayName: string }) {
             <span>{count} 张</span>
           </>
         )}
+        <span className="text-slate-600">·</span>
+        <span
+          className="tip cursor-help rounded-md border border-white/10 bg-white/[0.05] px-1.5 py-0.5 font-medium tabular-nums text-slate-200"
+          data-tip={`${cost.detail}${cost.note ? `\n${cost.note}` : ""}\n价格调研于 ${PRICING_AS_OF}，以平台控制台为准`}
+        >
+          预计 {cost.text}
+        </span>
       </div>
 
       <Button
@@ -342,7 +385,7 @@ export default function Studio({ displayName }: { displayName: string }) {
       {/* 紧凑头部：一行放下问候、统计与入口 */}
       <header className="studio-welcome mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
-          <h1 className="font-serif text-xl font-semibold tracking-tight text-white">
+          <h1 className="text-xl font-semibold tracking-tight text-white">
             嗨，{displayName}，<span className="gradient-text">想做点什么？</span>
           </h1>
           <div className="flex items-center gap-2 text-[11px] text-slate-400">
@@ -444,11 +487,17 @@ export default function Studio({ displayName }: { displayName: string }) {
                 {modelOptions.map((item) => {
                   const active = modelId === item.id;
                   const color = providerColor(item.provider);
+                  const tag = priceTag(item, item.defaultResolution);
+                  const table = priceTable(item);
                   return (
                     <button
                       key={item.id}
                       onClick={() => pickModel(item.id)}
-                      data-tip={item.tagline}
+                      data-tip={
+                        table.length
+                          ? `${item.tagline}\n参考单价：${table.join(" · ")}\n（${PRICING_AS_OF} 调研，以控制台为准）`
+                          : `${item.tagline}\n参考单价：见控制台`
+                      }
                       className={cn(
                         "tip lift flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[12px] font-medium",
                         active
@@ -475,6 +524,18 @@ export default function Studio({ displayName }: { displayName: string }) {
                           {item.badge}
                         </span>
                       ) : null}
+                      {tag ? (
+                        <span
+                          className={cn(
+                            "rounded-full px-1.5 py-px text-[10px] font-normal tabular-nums",
+                            active
+                              ? "bg-white/20 text-white"
+                              : "bg-white/[0.06] text-slate-400",
+                          )}
+                        >
+                          {tag}
+                        </span>
+                      ) : null}
                     </button>
                   );
                 })}
@@ -491,6 +552,21 @@ export default function Studio({ displayName }: { displayName: string }) {
 
             <Field
               label="提示词"
+              action={
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  loading={optimizingPrompt}
+                  disabled={!prompt.trim() || submitting}
+                  title="使用 MiniMax 文本模型优化并替换当前提示词"
+                  onClick={() => void optimizePrompt()}
+                  className="h-7 px-2.5 text-[11px]"
+                >
+                  {!optimizingPrompt ? <Sparkles className="size-3.5" /> : null}
+                  {optimizingPrompt ? "正在优化" : "优化提示词"}
+                </Button>
+              }
               hint={
                 <span className={cn(prompt.length > charLimit && "text-rose-400")}>
                   {prompt.length} / {charLimit}
@@ -501,6 +577,7 @@ export default function Studio({ displayName }: { displayName: string }) {
                 rows={tab === "video" ? 4 : 4}
                 value={prompt}
                 maxLength={charLimit}
+                disabled={optimizingPrompt}
                 onChange={(event) => setPrompt(event.target.value)}
                 placeholder={
                   tab === "video"
@@ -653,49 +730,6 @@ export default function Studio({ displayName }: { displayName: string }) {
                         </span>
                       </div>
                     ) : null}
-
-                    {model.supportsPromptOptimizer && modelId !== "MiniMax-H3-Max" ? (
-                      <div className="flex items-center gap-2">
-                        <Switch checked={videoOptimizer} onChange={setVideoOptimizer} />
-                        <span className="text-[12px] text-slate-300">提示词优化</span>
-                      </div>
-                    ) : null}
-
-                    {modelId === "MiniMax-H3-Max" ? (
-                      <div className="flex items-center gap-2">
-                        <span className="text-[12px] text-slate-300">提示词优化</span>
-                        <div className="flex gap-1">
-                          {(
-                            [
-                              ["disabled", "关"],
-                              ["balanced", "均衡"],
-                              ["quality", "高"],
-                            ] as const
-                          ).map(([value, label]) => (
-                            <button
-                              key={value}
-                              type="button"
-                              onClick={() => setExpansion(value)}
-                              title={
-                                value === "disabled"
-                                  ? "不做扩写，完全按你的提示词"
-                                  : value === "balanced"
-                                    ? "均衡扩写（推荐）"
-                                    : "更注重扩写质量"
-                              }
-                              className={cn(
-                                "h-7 rounded-lg border px-2 text-[11px] transition",
-                                expansion === value
-                                  ? "border-[#7c6cff]/60 bg-[#7c6cff]/20 text-white"
-                                  : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-slate-200",
-                              )}
-                            >
-                              {label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
                   </div>
                 </div>
               </>
@@ -741,15 +775,6 @@ export default function Studio({ displayName }: { displayName: string }) {
                   </div>
                 </Field>
 
-                <div className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3.5 py-3 transition hover:border-[#7c6cff]/30">
-                  <div>
-                    <p className="text-[13px] text-slate-200">智能改写提示词</p>
-                    <p className="mt-0.5 text-[11px] text-slate-500">
-                      自动补充画面细节，通常更出片
-                    </p>
-                  </div>
-                  <Switch checked={optimizer} onChange={setOptimizer} />
-                </div>
               </>
             )}
           </div>

@@ -13,6 +13,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Badge, Button, OrbitLoader, cn, useToast } from "@/components/ui";
+import { PRICING_AS_OF, estimateCost, getModel } from "@/lib/models";
 import { api } from "@/lib/client";
 import type { AssetWithUser } from "@/lib/types";
 
@@ -70,8 +71,8 @@ export function AssetThumb({ asset }: { asset: AssetWithUser }) {
           className="zoom-media h-full w-full object-cover"
         />
         <div className="pointer-events-none absolute inset-0 grid place-items-center bg-black/25 opacity-100 transition group-hover/media:opacity-0">
-          <div className="grid size-11 place-items-center rounded-full bg-black/50 backdrop-blur transition group-hover/media:scale-110">
-            <Play className="ml-0.5 size-4 fill-white text-white" />
+          <div className="video-play-mark grid size-11 place-items-center rounded-full backdrop-blur transition group-hover/media:scale-110">
+            <Play className="ml-0.5 size-4 fill-current" />
           </div>
         </div>
       </div>
@@ -183,7 +184,10 @@ export function AssetCard({
         <AssetThumb asset={asset} />
 
         <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 bg-gradient-to-b from-black/60 to-transparent p-2.5 opacity-0 transition group-hover:opacity-100">
-          <Badge tone={asset.kind === "video" ? "brand" : "default"}>
+          <Badge
+            tone={asset.kind === "video" ? "brand" : "default"}
+            className={asset.kind === "video" ? "asset-video-badge" : undefined}
+          >
             {asset.kind === "video" ? "视频" : "图片"}
           </Badge>
           <div className="flex items-center gap-1">
@@ -191,25 +195,25 @@ export function AssetCard({
               onClick={toggleFavorite}
               disabled={busy}
               className={cn(
-                "tip grid size-7 place-items-center rounded-lg bg-black/55 backdrop-blur transition hover:scale-110 hover:bg-black/75",
-                asset.isFavorite ? "text-rose-400" : "text-slate-300",
+                "asset-action-icon tip grid size-7 place-items-center rounded-lg transition hover:scale-110",
+                asset.isFavorite && "asset-action-favorite",
               )}
               data-tip={asset.isFavorite ? "取消收藏" : "收藏"}
             >
-              <Heart className={cn("size-3.5", asset.isFavorite && "fill-rose-400")} />
+              <Heart className={cn("size-3.5", asset.isFavorite && "fill-current")} />
             </button>
             {asset.status === "succeeded" ? (
               <>
                 <button
                   onClick={download}
-                  className="tip grid size-7 place-items-center rounded-lg bg-black/55 text-slate-300 backdrop-blur transition hover:scale-110 hover:bg-black/75"
+                  className="asset-action-icon tip grid size-7 place-items-center rounded-lg transition hover:scale-110"
                   data-tip="下载"
                 >
                   <Download className="size-3.5" />
                 </button>
                 <button
                   onClick={share}
-                  className="tip grid size-7 place-items-center rounded-lg bg-black/55 text-slate-300 backdrop-blur transition hover:scale-110 hover:bg-black/75"
+                  className="asset-action-icon tip grid size-7 place-items-center rounded-lg transition hover:scale-110"
                   data-tip="复制分享链接"
                 >
                   <Link2 className="size-3.5" />
@@ -220,7 +224,7 @@ export function AssetCard({
               <button
                 onClick={retry}
                 disabled={busy}
-                className="tip grid size-7 place-items-center rounded-lg bg-black/55 text-slate-300 backdrop-blur transition hover:scale-110 hover:bg-black/75"
+                className="asset-action-icon tip grid size-7 place-items-center rounded-lg transition hover:scale-110"
                 data-tip="重试"
               >
                 <RefreshCw className="size-3.5" />
@@ -229,7 +233,7 @@ export function AssetCard({
             <button
               onClick={remove}
               disabled={busy}
-              className="tip grid size-7 place-items-center rounded-lg bg-black/55 text-slate-300 backdrop-blur transition hover:scale-110 hover:bg-rose-500/85 hover:text-white"
+              className="asset-action-icon asset-action-danger tip grid size-7 place-items-center rounded-lg transition hover:scale-110"
               data-tip="删除"
             >
               <Trash2 className="size-3.5" />
@@ -273,6 +277,15 @@ export function AssetViewer({
 }) {
   const { toast } = useToast();
   if (!open || !asset) return null;
+
+  const model = getModel(asset.model);
+  const cost = model
+    ? estimateCost(model, {
+        resolution: asset.resolution ?? undefined,
+        duration: asset.durationSeconds ?? undefined,
+        count: 1,
+      })
+    : null;
 
   const shareUrl = asset.shareToken
     ? `${typeof location !== "undefined" ? location.origin : ""}/s/${asset.shareToken}`
@@ -383,6 +396,15 @@ export function AssetViewer({
                 {asset.kind === "video" ? "视频" : "图片"}
               </p>
             </div>
+            {cost ? (
+              <div
+                className="tip cursor-help rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2"
+                data-tip={`${cost.detail}${cost.note ? `\n${cost.note}` : ""}\n价格调研于 ${PRICING_AS_OF}，以平台控制台为准`}
+              >
+                <p className="text-slate-500">参考花费</p>
+                <p className="mt-0.5 tabular-nums text-slate-200">{cost.text}</p>
+              </div>
+            ) : null}
           </div>
 
           {shareUrl ? (

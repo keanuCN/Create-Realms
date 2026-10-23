@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Badge, Button, Input, Switch, cn, useToast } from "@/components/ui";
+import { MODELS, PRICING_AS_OF, priceTable } from "@/lib/models";
 import { api } from "@/lib/client";
 
 interface CredentialView {
@@ -219,6 +220,9 @@ export default function ProviderSettings() {
             const hasUnsavedDraft = item.credentials.some(
               (field) => Boolean((draft.values[field.key] ?? "").trim()),
             );
+            const priceLines = MODELS.filter((entry) => entry.provider === item.id)
+              .map((entry) => ({ id: entry.id, label: entry.label, prices: priceTable(entry) }))
+              .filter((entry) => entry.prices.length > 0);
 
             return (
               <article
@@ -253,6 +257,24 @@ export default function ProviderSettings() {
                     <p className="mt-1 text-[12px] text-slate-500">
                       {item.vendor} · 支持 {item.capability}
                     </p>
+                    {priceLines.length ? (
+                      <div className="mt-2 space-y-0.5">
+                        {priceLines.map((entry) => (
+                          <p key={entry.id} className="text-[11px] text-slate-500">
+                            <span className="text-slate-400">{entry.label}</span>
+                            <span className="mx-1 text-slate-600">·</span>
+                            <span className="tabular-nums">{entry.prices.join(" | ")}</span>
+                          </p>
+                        ))}
+                        <p className="text-[10px] text-slate-600">
+                          参考单价（{PRICING_AS_OF} 调研），以平台控制台为准
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-[11px] text-slate-600">
+                        参考单价：见平台控制台
+                      </p>
+                    )}
                   </div>
 
                   <a
